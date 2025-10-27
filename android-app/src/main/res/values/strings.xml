@@ -1,4 +1,12 @@
 <resources>
     <string name="app_name">Prevengos PRL</string>
     <string name="main_message">Sincroniza tus cuestionarios médicos incluso sin conexión.</string>
+    <string name="label_nif">NIF</string>
+    <string name="label_nombre">Nombre</string>
+    <string name="label_apellidos">Apellidos</string>
+    <string name="label_telefono">Teléfono</string>
+    <string name="label_email">Correo electrónico</string>
+    <string name="label_nota">Notas de anamnesis</string>
+    <string name="action_guardar">Guardar captura</string>
+    <string name="sin_pacientes">Sin pacientes registrados aún</string>
 </resources>
