@@ -4,6 +4,10 @@ import com.prevengos.plug.hubbackend.domain.Paciente;
 import com.prevengos.plug.hubbackend.dto.BatchSyncResponse;
 import com.prevengos.plug.hubbackend.dto.PacienteDto;
 import com.prevengos.plug.hubbackend.repository.PacienteRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import net.logstash.logback.argument.StructuredArguments;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,15 +22,27 @@ public class PacienteService {
 
     private final PacienteRepository pacienteRepository;
     private final SyncEventService syncEventService;
+    private final MeterRegistry meterRegistry;
 
-    public PacienteService(PacienteRepository pacienteRepository, SyncEventService syncEventService) {
+    private static final Logger logger = LoggerFactory.getLogger(PacienteService.class);
+
+    public PacienteService(PacienteRepository pacienteRepository,
+                           SyncEventService syncEventService,
+                           MeterRegistry meterRegistry) {
         this.pacienteRepository = pacienteRepository;
         this.syncEventService = syncEventService;
+        this.meterRegistry = meterRegistry;
     }
 
     @Transactional
     public BatchSyncResponse upsertPacientes(List<PacienteDto> pacientes, String source) {
         List<UUID> identifiers = new ArrayList<>();
+        String resolvedSource = resolveSource(source);
+        meterRegistry.summary("hub.sync.pacientes.batch.size",
+                "source", resolvedSource).record(pacientes.size());
+        logger.info("Procesando lote de pacientes",
+                StructuredArguments.kv("batchSize", pacientes.size()),
+                StructuredArguments.kv("source", resolvedSource));
         for (PacienteDto dto : pacientes) {
             Paciente entity = pacienteRepository.findById(dto.pacienteId())
                     .orElseGet(() -> new Paciente(dto.pacienteId()));
@@ -39,15 +55,27 @@ public class PacienteService {
             entity.setLastModified(dto.updatedAt() != null ? dto.updatedAt() : OffsetDateTime.now(ZoneOffset.UTC));
             pacienteRepository.save(entity);
 
-            long syncToken = syncEventService
-                    .registerEvent("paciente-upserted", dto, source, null, null, null)
-                    .getSyncToken();
+            var event = syncEventService.registerEvent("paciente-upserted", dto, source, null, null, null);
+            resolvedSource = event.getSource();
+            long syncToken = event.getSyncToken();
             entity.setSyncToken(syncToken);
             entity.setLastModified(OffsetDateTime.now(ZoneOffset.UTC));
             pacienteRepository.save(entity);
             identifiers.add(entity.getPacienteId());
+            meterRegistry.counter("hub.sync.pacientes.processed",
+                    "source", resolvedSource)
+                    .increment();
+            logger.info("Paciente sincronizado",
+                    StructuredArguments.kv("pacienteId", entity.getPacienteId()),
+                    StructuredArguments.kv("source", resolvedSource),
+                    StructuredArguments.kv("syncToken", syncToken),
+                    StructuredArguments.kv("isNew", isNew));
         }
         return new BatchSyncResponse(identifiers.size(), identifiers);
+    }
+
+    private String resolveSource(String source) {
+        return source != null && !source.isBlank() ? source : SyncEventService.DEFAULT_SOURCE;
     }
 
     private void mapDtoToEntity(PacienteDto dto, Paciente entity) {

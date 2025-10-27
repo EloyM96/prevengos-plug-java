@@ -16,8 +16,18 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+logging:
+  level:
+    com.prevengos.plug.hubbackend: INFO
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
