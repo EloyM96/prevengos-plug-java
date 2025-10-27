@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prevengos.prl/schemas/v1/event-envelope.schema.json",
+  "title": "EventEnvelope",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "version",
+    "occurred_at",
+    "source",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador único del evento"
+    },
+    "event_type": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "description": "Tipo de evento en kebab-case"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Versión del contrato consumido por el evento"
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Fecha y hora en que ocurrió el evento (ISO 8601 con zona)"
+    },
+    "source": {
+      "type": "string",
+      "description": "Sistema origen que emitió el evento"
+    },
+    "correlation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador de correlación para trazabilidad end-to-end"
+    },
+    "causation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador del evento que originó este mensaje"
+    },
+    "payload": {
+      "type": "object",
+      "description": "Carga útil específica del evento"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Metadatos adicionales no funcionales"
+    }
+  },
+  "additionalProperties": false
+}
