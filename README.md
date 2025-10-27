@@ -1,47 +1,46 @@
 # Prevengos Plug
 
 ## Visión general
-Prevengos Plug es una plataforma híbrida que combina un motor de análisis en Python con aplicaciones cliente multiplataforma escritas en Kotlin y Java. El objetivo es ofrecer herramientas de prevención de riesgos laborales reutilizables, seguras y fáciles de desplegar, permitiendo iteraciones rápidas entre equipos de datos, producto y desarrollo.
+Prevengos Plug es un programa 100 % Java pensado para ejecutarse en entornos controlados de Prevengos. El objetivo es ofrecer una herramienta local que permita capturar datos de pacientes desde la app Android y la aplicación de escritorio, almacenarlos en la base de datos SQL Server del servidor de Prevengos y sincronizarlos con la plataforma oficial a través de intercambios CSV. Toda la mensajería, analítica avanzada o automatización multicanal se delega en repositorios externos —como [`prl-notifier`](https://github.com/prevengos/prl-notifier)— para evitar duplicar responsabilidades.
 
-La solución se organiza en torno a un repositorio monorepo que alberga todos los artefactos: componentes compartidos, aplicaciones finales y el motor de cálculo especializado. El esqueleto se basa en Gradle con Kotlin DSL para orquestar dependencias y tareas de construcción tanto para módulos Java/Kotlin como para integraciones con el motor Python.
+El monorepo agrupa las aplicaciones cliente y los módulos Java compartidos que encapsulan contratos, lógica de sincronización y acceso a datos. No existe motor Python, ni código Kotlin, ni adaptadores de terceros incluidos: el alcance se limita a la sincronización local con Prevengos y al mantenimiento de consistencia entre los clientes Java y la base de datos corporativa.
 
 ## Principios clave
-- **Modularidad evolutiva**: cada responsabilidad reside en un módulo aislado que puede versionarse y desplegarse de forma independiente.
-- **Paridad de entornos**: los scripts de construcción reproducen el mismo comportamiento en CI, entornos locales y despliegues automatizados.
-- **Interoperabilidad**: los límites entre JVM y Python se definen mediante interfaces bien documentadas para garantizar integraciones predecibles.
-- **Observabilidad desde el inicio**: se habilitan puntos de instrumentación comunes para telemetría, trazas y registros desde los módulos compartidos.
-- **Seguridad por diseño**: se establecen políticas de dependencia, revisión de código y escaneos automáticos como parte del flujo de CI/CD.
+- **Sincronización local controlada**: todas las operaciones de lectura y escritura se realizan contra SQL Server local y los CSV intercambiados con Prevengos.
+- **Tecnología homogénea**: solo se utiliza Java tanto en los clientes como en los módulos compartidos para simplificar despliegues y soporte.
+- **Responsabilidades claras**: la mensajería, notificaciones y automatizaciones externas viven fuera de este repositorio y se integran únicamente a través de CSV o procesos coordinados.
+- **Reutilización entre clientes**: los módulos compartidos definen contratos y utilidades comunes para Android y escritorio, evitando divergencias en el modelo de datos.
 
 ## Diagrama lógico
 ```mermaid
 flowchart LR
-    subgraph "Motor Python"
-        PE[Python Engine]
+    subgraph "Servidor local Prevengos"
+        DB[(SQL Server local)]
+        CSV[Intercambio CSV con Prevengos]
     end
 
-    subgraph "Plataforma JVM"
-        direction TB
+    subgraph "Clientes Java"
+        ANDROID[Aplicación Android]
+        DESKTOP[Aplicación de escritorio]
+    end
+
+    subgraph "Módulos compartidos"
         SH[modules/shared]
-        AN[modules/analytics]
         GW[modules/gateway]
+        HUB[modules/hub-backend]
     end
 
-    subgraph "Clientes"
-        ANDROID[android-app]
-        DESKTOP[desktop-app]
-    end
-
-    PE <--> GW
-    GW --> SH
-    GW --> AN
-    SH --> ANDROID
-    SH --> DESKTOP
-    AN --> ANDROID
+    ANDROID --> SH
+    DESKTOP --> SH
+    SH --> GW
+    GW --> HUB
+    HUB --> DB
+    HUB --> CSV
 ```
 
-El diagrama muestra cómo el motor Python se integra a través de un módulo gateway que expone las capacidades analíticas al resto de módulos JVM. Los módulos compartidos suministran contratos y utilidades comunes para las aplicaciones Android y desktop, garantizando consistencia funcional desde el día uno.
+El diagrama refleja que las apps Java se apoyan en módulos compartidos para persistir información en SQL Server y generar o consumir los CSV requeridos por Prevengos. Cualquier otro canal (mensajería, email, analítica o integraciones externas) debe implementarse en sistemas anexos y coordinarse mediante los mismos CSV o la base de datos local.
 
 ## Próximos pasos sugeridos
-1. Definir contratos de comunicación entre `python-engine` y `modules/gateway` (p. ej. gRPC o REST).
-2. Añadir configuraciones específicas en `android-app` y `desktop-app` para gestionar dependencias móviles y de escritorio.
-3. Implementar pipelines de CI que validen tanto el código Kotlin/Java como los componentes Python.
+1. Documentar el procedimiento operativo para exportar e importar CSV con Prevengos desde este programa local.
+2. Completar los adaptadores JDBC hacia SQL Server en `modules/gateway` y `modules/hub-backend` para cubrir todos los casos de uso requeridos por la app y el escritorio.
+3. Sincronizar dependencias y contratos con el repositorio `prl-notifier`, asegurando que no se solapan funcionalidades y que ambos proyectos comparten la misma fuente de verdad.

@@ -1,49 +1,36 @@
-# Bus de mensajería PRL Hub (RabbitMQ / Redis Streams)
+# Flujo de eventos locales PRL Hub
 
-Este documento lista los topics/eventos que circularán por el bus interno del Hub PRL. Todos los
-mensajes siguen la envoltura `EventEnvelope` definida en `contracts/json/v1/event-envelope.schema.json`
-(ejemplo pendiente de publicar) e incluyen metadatos de trazabilidad (`event_id`, `source`,
-`occurred_at`, `schema_version`).
+La arquitectura actual no incorpora un bus de mensajería dedicado (RabbitMQ/Redis). En su lugar, el hub Java registra eventos relevantes en tablas de auditoría de SQL Server y genera CSV para que otros sistemas los consuman. Este documento describe qué eventos se persisten y cómo pueden ser consultados por herramientas externas sin introducir un broker adicional.
 
-## Topología
+## Registro de eventos en SQL Server
 
-- **RabbitMQ** actúa como *event backbone* para integraciones críticas (Prevengos, móviles, ETLs).
-  - Exchange principal `hub.prl.events` (tipo `topic`).
-  - Cada evento se publica en `routing_key` = `<dominio>.<evento>`.
-- **Redis Streams** (`prl-hub:outbox`) mantiene una ventana corta (<48h) para *replay* y testing.
-- **Outbox Pattern**: la API y los conectores persisten eventos en una tabla `event_outbox` antes de
-  publicarlos para asegurar idempotencia.
+| Evento                               | Tabla SQL                | Productor principal            | Consumidores externos              | Notas |
+|--------------------------------------|--------------------------|--------------------------------|------------------------------------|-------|
+| `pacientes.registrado`               | `event_log_pacientes`    | API `/pacientes` y apps        | RRHH (CSV), sincronización móvil   | Incluye payload JSON y `trace_id`. |
+| `pacientes.actualizado`              | `event_log_pacientes`    | API `/pacientes`               | RRHH (CSV), historización externa  | Campo `change_version` incremental. |
+| `cuestionarios.completado`           | `event_log_cuestionarios`| API `/cuestionarios`           | Prevengos médico (CSV), prl-notifier | Adjuntos referenciados por ruta local. |
+| `reconocimientos.planificado`        | `event_log_reconocimientos` | API `/reconocimientos`      | Agenda médica, Prevengos citas     | Guarda fecha y recurso asignado. |
+| `reconocimientos.estado_cambiado`    | `event_log_reconocimientos` | Sincronización Prevengos    | Portal empresas, reporting         | `metadata.status_source` indica origen. |
+| `aptitud.cambiada`                   | `event_log_reconocimientos` | Validación médica          | RRHH, generación de certificados   | Dispara exportación CSV para Prevengos. |
+| `rrhh.drop_generado`                 | `event_log_integraciones` | Job CSV RRHH                 | Equipo RRHH                         | Guarda ruta y checksum del fichero. |
+| `sync.conflicto_detectado`           | `event_log_sync`          | Servicio de sincronización    | Equipo soporte                      | Se detalla el conflicto para resolución manual. |
 
-## Eventos publicados
+## Consulta por otros proyectos
 
-| Evento (`routing_key`)             | Dominio       | Productor principal        | Consumidores esperados                               | Payload (schema)                   | Notas |
-|-----------------------------------|---------------|-----------------------------|------------------------------------------------------|------------------------------------|-------|
-| `pacientes.registrado`            | Pacientes     | API `/pacientes`            | Prevengos RRHH, motor analítico, sincronización móvil | `contracts/json/v1/paciente`       | Dispara actualización maestro trabajador. |
-| `pacientes.actualizado`           | Pacientes     | API `/pacientes`            | Prevengos RRHH, historizador                        | `contracts/json/v1/paciente`       | Incluye `change_version` y `delta`. |
-| `cuestionarios.completado`        | Cuestionarios | API `/cuestionarios`        | Motor Python, Prevengos médico, data lake            | `contracts/json/v1/cuestionario`   | Adjuntos se entregan vía S3/MinIO referenciado. |
-| `reconocimientos.planificado`     | Reconocimientos | API `/reconocimientos`    | Agenda médica, Prevengos citas, notificador Omnichannel | `contracts/json/v1/cita`        | Incluye `externo_ref` para correlación. |
-| `reconocimientos.estado_cambiado` | Reconocimientos | Sincronización móvil/Prevengos | Portal empresas, Prevengos, data lake             | `contracts/json/v1/cita`           | `metadata.status_source` indica origen (móvil/Prevengos). |
-| `aptitud.cambiada`                | Aptitud       | Motor analítico / médico    | RRHH, portal empresa, generador certificados         | `contracts/json/v1/cita`           | Cambios de aptitud deben disparar generación de certificado. |
-| `rrhh.drop_generado`              | Integraciones | Job `/prevengos/jobs/rrhh`  | Servidor de ficheros, Prevengos legacy               | `contracts/json/v1/event-envelope` | Notifica disponibilidad del fichero Access/CSV en la drop-zone. |
-| `sync.conflicto_detectado`        | Sincronización | Servicio Sync               | Equipo soporte, data quality                         | `contracts/json/v1/event-envelope` | Incluye detalles del conflicto para resolución manual. |
+1. **Vistas SQL**: publicar vistas `vw_event_log_*` con filtros por fecha y dominio. Los sistemas externos (p.ej. `prl-notifier`) pueden ejecutar lecturas periódicas o CDC.
+2. **CSV incrementales**: jobs nocturnos generan CSV con los eventos nuevos y los depositan en `/var/prevengos/events/YYYYMMDD/`. Esta es la alternativa ligera a RabbitMQ.
+3. **API REST**: el hub expone endpoints `/eventos/<dominio>` con paginación y filtros (`desde`, `hasta`, `trace_id`). Diseñados para consultas manuales o integración sencilla.
 
-## Suscripciones clave
+## Consideraciones operativas
 
-- **Prevengos Core**: colas dedicadas `prevengos.rrhh`, `prevengos.medico`. Filtro por `pacientes.*`, `reconocimientos.*`, `aptitud.cambiada`.
-- **Aplicaciones móviles**: cola `mobile.sync` suscrita a `pacientes.*` y `reconocimientos.*`.
-- **Motor analítico/LLM (Python Engine)**: cola `analytics` suscrita a `cuestionarios.completado`, `aptitud.cambiada` y `sync.conflicto_detectado`.
-- **ETL Data Lake**: cola `datalake.raw` con `#` para ingestión completa.
-
-## Consideraciones de operación
-
-1. **Versionado de eventos**: la propiedad `schema_version` debe alinearse con `contracts/json`.
-2. **Garantías**: RabbitMQ configurado en modo `publisher confirms` + colas durables.
-3. **DLQ**: cada cola crítica tiene cola de rechazo `<queue>.dlq` con TTL 7 días.
-4. **Monitoreo**: métricas expuestas en Prometheus (`hub_prl_events_published_total`, `hub_prl_events_retry_total`).
-5. **Seguridad**: credenciales específicas por consumidor, roles de solo lectura para Redis Streams.
+1. **Versionado**: los payloads almacenados siguen los esquemas de `contracts/json`. Cada fila registra `schema_version`.
+2. **Retención**: conservar mínimo 180 días de eventos en SQL Server; mover históricos a almacenamiento frío si se requiere.
+3. **Auditoría**: activar triggers que capturen usuario y cliente de origen. Los eventos sirven como evidencia ante Prevengos y auditorías internas.
+4. **Alertas**: crear vistas o procedimientos almacenados que detecten retrasos en exportaciones CSV y envíen alertas manuales (correo corporativo/ticketing).
+5. **Escalabilidad**: si en el futuro se necesitara un broker, los consumidores deberían poder migrar leyendo desde las tablas outbox existentes.
 
 ## Pendientes
 
-- Publicar ejemplos concretos de `EventEnvelope` firmados.
-- Definir convención de *replay* para sincronizaciones masivas (>48h) usando almacenamiento S3.
-- Automatizar provisión de colas vía Terraform/Ansible.
+- Publicar ejemplos concretos de filas en `event_log_*` y sus CSV derivados.
+- Documentar scripts de extracción (`scripts/export-events.sh`) para soportar auditorías.
+- Evaluar si alguna integración futura justifica la introducción de un broker dedicado.
