@@ -1,1 +1,0 @@
-"""Colección de rutas FastAPI."""
