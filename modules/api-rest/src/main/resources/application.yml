@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: hub-api
+  main:
+    banner-mode: "off"
+server:
+  port: 8080
+logging:
+  level:
+    root: INFO
+    com.prevengos.plug: DEBUG
