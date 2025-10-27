@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prevengos-python-engine"
+version = "0.1.0"
+description = "Motor auxiliar FastAPI + Celery para Prevengos"
+authors = [{name = "Prevengos Team"}]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "celery>=5.3.6",
+    "redis>=5.0.1",
+    "pydantic>=2.6.0",
+    "orjson>=3.9.12"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "httpx"
+]
+
+[tool.setuptools.packages.find]
+where = ["app"]
