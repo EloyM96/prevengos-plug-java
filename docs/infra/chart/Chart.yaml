@@ -1,0 +1,6 @@
+apiVersion: v2
+name: prevengos-plug-api
+version: 0.1.0
+appVersion: "0.1.0"
+description: Helm chart to deploy the Prevengos Plug API into Kubernetes environments.
+type: application

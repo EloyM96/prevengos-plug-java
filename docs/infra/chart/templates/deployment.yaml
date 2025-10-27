@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prevengos-plug-api.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "prevengos-plug-api.name" . }}
+    helm.sh/chart: {{ include "prevengos-plug-api.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "prevengos-plug-api.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "prevengos-plug-api.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+              name: http
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
+            {{- end }}
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.database.name }}
+                  key: {{ .Values.secretRefs.database.urlKey }}
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.database.name }}
+                  key: {{ .Values.secretRefs.database.usernameKey }}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.database.name }}
+                  key: {{ .Values.secretRefs.database.passwordKey }}
+            - name: SPRING_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.redis.name }}
+                  key: {{ .Values.secretRefs.redis.urlKey }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.persistence.volumeMounts }}
+          volumeMounts:
+{{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.persistence.volumes }}
+      volumes:
+{{- toYaml . | nindent 8 }}
+      {{- end }}
