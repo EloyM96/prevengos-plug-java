@@ -8,5 +8,6 @@ include(
     "modules:api-rest",
     "modules:shared",
     "modules:analytics",
-    "modules:gateway"
+    "modules:gateway",
+    "modules:hub-backend"
 )
