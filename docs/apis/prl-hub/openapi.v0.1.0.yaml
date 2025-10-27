@@ -1,0 +1,633 @@
+openapi: 3.0.3
+info:
+  title: PRL Hub API
+  version: 0.1.0
+  description: |
+    Borrador versionado de la API REST del Hub PRL. Expone endpoints sincrónicos para
+    altas y actualizaciones de pacientes, captura de cuestionarios clínicos, planificación
+    de reconocimientos y orquestación de procesos de sincronización offline.
+  contact:
+    name: Equipo de integración PRL Hub
+    email: integraciones@prevengos.test
+  license:
+    name: CC BY-NC-SA 4.0
+servers:
+  - url: https://hub.prl.local/api
+    description: Entorno interno de referencia
+  - url: https://hub-prl-pre.int.prevengos.test/api
+    description: Preproducción integrada con Prevengos
+  - url: https://hub-prl.prevengos.com/api
+    description: Producción
+tags:
+  - name: Pacientes
+    description: Gestión de fichas de trabajador/paciente
+  - name: Cuestionarios
+    description: Registro de cuestionarios clínicos y consentimientos
+  - name: Reconocimientos
+    description: Programación y actualización de reconocimientos médicos
+  - name: Sincronizacion
+    description: Endpoints de sincronización offline-first
+  - name: JobsPrevengos
+    description: Operaciones batch o mediadas por ficheros para conectores Prevengos
+  - name: Salud
+    description: Comprobación del estado del servicio
+paths:
+  /health:
+    get:
+      tags: [Salud]
+      summary: Comprobación de estado
+      responses:
+        '200':
+          description: El servicio está operativo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  version:
+                    type: string
+                    example: 0.1.0
+                  timestamp:
+                    type: string
+                    format: date-time
+  /pacientes:
+    post:
+      tags: [Pacientes]
+      summary: Alta o actualización upsert de paciente
+      description: |
+        Crea o actualiza la ficha maestra del trabajador/paciente. Los eventos se encolan
+        de forma asíncrona para notificar a Prevengos y otros consumidores.
+      operationId: upsertPaciente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Paciente'
+      responses:
+        '202':
+          description: Petición aceptada y encolada para procesamiento asíncrono
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncJobResponse'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - ApiKeyAuth: []
+  /pacientes/{pacienteId}:
+    get:
+      tags: [Pacientes]
+      summary: Obtener ficha consolidada de un paciente
+      parameters:
+        - $ref: '#/components/parameters/PacienteId'
+      responses:
+        '200':
+          description: Datos actuales del paciente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paciente'
+        '404':
+          description: Paciente no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - ApiKeyAuth: []
+  /cuestionarios:
+    post:
+      tags: [Cuestionarios]
+      summary: Registrar un cuestionario completado
+      description: |
+        Recibe un cuestionario clínico firmado. El backend valida firmas y reglas de
+        negocio y publica eventos `cuestionario-completado`.
+      operationId: registrarCuestionario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cuestionario'
+      responses:
+        '202':
+          description: Cuestionario aceptado y encolado para procesado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncJobResponse'
+        '409':
+          description: Duplicado detectado por event_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - ApiKeyAuth: []
+  /reconocimientos:
+    post:
+      tags: [Reconocimientos]
+      summary: Crear un reconocimiento médico planificado
+      operationId: crearReconocimiento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Reconocimiento'
+      responses:
+        '201':
+          description: Reconocimiento registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reconocimiento'
+        '202':
+          description: Reconocimiento encolado para orquestación con Prevengos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncJobResponse'
+        '400':
+          description: Petición inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - ApiKeyAuth: []
+  /reconocimientos/{reconocimientoId}/estado:
+    patch:
+      tags: [Reconocimientos]
+      summary: Actualizar estado y aptitud de un reconocimiento
+      parameters:
+        - $ref: '#/components/parameters/ReconocimientoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado:
+                  type: string
+                  enum: [planificada, en_curso, finalizada, cancelada]
+                aptitud:
+                  type: string
+                  enum: [apto, apto_con_limitaciones, no_apto, pendiente]
+                observado_en:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reconocimiento'
+        '404':
+          description: Reconocimiento no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - ApiKeyAuth: []
+  /sincronizacion/pull:
+    get:
+      tags: [Sincronizacion]
+      summary: Obtiene cambios incrementales desde una marca temporal
+      parameters:
+        - in: query
+          name: since
+          description: Marca temporal ISO 8601 desde la que se solicitan cambios
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: entities
+          description: Lista separada por comas de entidades a incluir (p.ej. pacientes, cuestionarios)
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: limit
+          description: Máximo de elementos por página (hasta 500)
+          required: false
+          schema:
+            type: integer
+            default: 200
+      responses:
+        '200':
+          description: Colección de cambios por entidad y cursor de continuación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncPullResponse'
+      security:
+        - ApiKeyAuth: []
+  /sincronizacion/push:
+    post:
+      tags: [Sincronizacion]
+      summary: Entrega lote de eventos offline capturados en el cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncPushRequest'
+      responses:
+        '202':
+          description: Lote aceptado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncJobResponse'
+        '409':
+          description: Evento duplicado o conflicto de versión
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - ApiKeyAuth: []
+  /prevengos/jobs/rrhh:
+    post:
+      tags: [JobsPrevengos]
+      summary: Disparar generación de fichero Access RRHH y subida a drop-zone
+      description: |
+        Solicita la generación del dataset de Recursos Humanos requerido por Prevengos
+        legacy. El resultado se deposita en la ruta configurada y se publica el evento
+        `rrhh-drop-generado`.
+      responses:
+        '202':
+          description: Job aceptado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncJobResponse'
+      security:
+        - ApiKeyAuth: []
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  parameters:
+    PacienteId:
+      name: pacienteId
+      in: path
+      required: true
+      description: UUID del paciente en el Hub PRL
+      schema:
+        type: string
+        format: uuid
+    ReconocimientoId:
+      name: reconocimientoId
+      in: path
+      required: true
+      description: UUID del reconocimiento
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    AsyncJobResponse:
+      type: object
+      required: [job_id, status]
+      properties:
+        job_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [accepted, queued]
+        trace_id:
+          type: string
+        enqueued_at:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+    Paciente:
+      type: object
+      required:
+        - paciente_id
+        - documento_identidad
+        - nombre
+        - apellidos
+        - sexo
+        - fecha_nacimiento
+        - updated_at
+      properties:
+        paciente_id:
+          type: string
+          format: uuid
+        version:
+          type: string
+          example: v1
+        documento_identidad:
+          type: string
+        tipo_documento:
+          type: string
+          enum: [dni, nie, pasaporte, otro]
+        nombre:
+          type: string
+        apellidos:
+          type: string
+        sexo:
+          type: string
+          enum: [m, f, x]
+        fecha_nacimiento:
+          type: string
+          format: date
+        telefono:
+          type: string
+        email:
+          type: string
+          format: email
+        domicilio:
+          $ref: '#/components/schemas/Domicilio'
+        contacto_laboral:
+          $ref: '#/components/schemas/ContactoLaboral'
+        metadata:
+          type: object
+          additionalProperties: true
+        updated_at:
+          type: string
+          format: date-time
+        change_version:
+          type: integer
+        event_id:
+          type: string
+          format: uuid
+    Domicilio:
+      type: object
+      properties:
+        calle:
+          type: string
+        numero:
+          type: string
+        portal:
+          type: string
+        piso:
+          type: string
+        codigo_postal:
+          type: string
+        municipio:
+          type: string
+        provincia:
+          type: string
+        pais:
+          type: string
+          default: ESP
+    ContactoLaboral:
+      type: object
+      properties:
+        empresa_id:
+          type: string
+        centro_trabajo:
+          type: string
+        puesto:
+          type: string
+        categoria:
+          type: string
+        riesgo_especial:
+          type: boolean
+        fecha_alta:
+          type: string
+          format: date
+    Cuestionario:
+      type: object
+      required:
+        - cuestionario_id
+        - paciente_id
+        - plantilla_codigo
+        - estado
+        - respuestas
+        - created_at
+      properties:
+        cuestionario_id:
+          type: string
+          format: uuid
+        version:
+          type: string
+          example: v1
+        paciente_id:
+          type: string
+          format: uuid
+        plantilla_codigo:
+          type: string
+        estado:
+          type: string
+          enum: [borrador, completado, validado]
+        respuestas:
+          type: array
+          items:
+            $ref: '#/components/schemas/RespuestaCuestionario'
+        firmas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Firma'
+        adjuntos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Adjunto'
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        event_id:
+          type: string
+          format: uuid
+    RespuestaCuestionario:
+      type: object
+      required: [pregunta_codigo, valor]
+      properties:
+        pregunta_codigo:
+          type: string
+        valor:
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+            - type: 'null'
+        unidad:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    Firma:
+      type: object
+      required: [tipo, contenido]
+      properties:
+        tipo:
+          type: string
+          enum: [paciente, medico, supervisor]
+        contenido:
+          type: string
+          description: Firma en base64
+        algoritmo:
+          type: string
+          example: ES256
+    Adjunto:
+      type: object
+      required: [nombre, contenido]
+      properties:
+        nombre:
+          type: string
+        mime_type:
+          type: string
+        contenido:
+          type: string
+          format: byte
+    Reconocimiento:
+      type: object
+      required:
+        - reconocimiento_id
+        - paciente_id
+        - fecha
+        - tipo
+        - estado
+      properties:
+        reconocimiento_id:
+          type: string
+          format: uuid
+        paciente_id:
+          type: string
+          format: uuid
+        fecha:
+          type: string
+          format: date-time
+        tipo:
+          type: string
+          enum: [inicial, periodico, extraordinario]
+        estado:
+          type: string
+          enum: [planificada, en_curso, finalizada, cancelada]
+        aptitud:
+          type: string
+          enum: [apto, apto_con_limitaciones, no_apto, pendiente]
+        externo_ref:
+          type: string
+        observaciones:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        event_id:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: date-time
+    SyncPullResponse:
+      type: object
+      required: [server_timestamp, changes]
+      properties:
+        server_timestamp:
+          type: string
+          format: date-time
+        next_since:
+          type: string
+          format: date-time
+        changes:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                entity:
+                  type: string
+                items:
+                  type: array
+                  items:
+                    type: object
+        warnings:
+          type: array
+          items:
+            type: string
+    SyncPushRequest:
+      type: object
+      required: [client_id, batches]
+      properties:
+        client_id:
+          type: string
+        last_sync:
+          type: string
+          format: date-time
+        batches:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncBatch'
+    SyncBatch:
+      type: object
+      required: [entity, items]
+      properties:
+        entity:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncItem'
+    SyncItem:
+      type: object
+      required: [event_id, payload]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+        change_version:
+          type: integer
+        payload:
+          type: object
+          additionalProperties: true
+        deleted:
+          type: boolean
+          default: false
+        observed_at:
+          type: string
+          format: date-time
+  responses:
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+x-changelog:
+  - version: 0.1.0
+    date: 2024-07-15
+    summary: Publicación inicial del borrador de la API del Hub PRL.
