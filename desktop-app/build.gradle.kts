@@ -2,12 +2,11 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     application
-    id("org.jetbrains.kotlin.jvm")
     id("org.openjfx.javafxplugin") version "0.0.14"
 }
 
 application {
-    mainClass.set("com.prevengos.plug.desktop.MainKt")
+    mainClass.set("com.prevengos.plug.desktop.PrevengosDesktopApp")
 }
 
 javafx {
@@ -19,10 +18,6 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
-}
-
-kotlin {
-    jvmToolchain(17)
 }
 
 dependencies {
