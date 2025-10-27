@@ -2,17 +2,12 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     `java-library`
-    id("org.jetbrains.kotlin.jvm")
 }
 
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(17))
     }
-}
-
-kotlin {
-    jvmToolchain(17)
 }
 
 dependencies {
@@ -24,7 +19,6 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testImplementation("au.com.dius.pact.consumer:junit5:4.6.9")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:2.17.0")
-    testImplementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
     testImplementation("io.swagger.parser.v3:swagger-parser:2.1.16")
 }
 

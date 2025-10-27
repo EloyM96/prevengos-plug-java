@@ -2,7 +2,6 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     `java-library`
-    id("org.jetbrains.kotlin.jvm")
 }
 
 java {
@@ -11,6 +10,3 @@ java {
     }
 }
 
-kotlin {
-    jvmToolchain(17)
-}
