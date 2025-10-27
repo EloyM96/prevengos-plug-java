@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: Prevengos Plug API
+  version: 1.0.0
+  description: >-
+    API REST del hub PRL para sincronizar pacientes, cuestionarios y citas con los sistemas
+    corporativos Prevengos.
+servers:
+  - url: https://api.prevengos.internal
+    description: Entorno productivo
+  - url: https://staging.api.prevengos.internal
+    description: Entorno de staging
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/patients/{patientId}:
+    get:
+      operationId: getPatient
+      summary: Recupera la ficha de un paciente.
+      tags: [Patients]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          description: Identificador único del paciente en Prevengos.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paciente encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: ../../json/v1/paciente.schema.json
+        '404':
+          description: Paciente inexistente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/patients/{patientId}/questionnaires:
+    get:
+      operationId: getPatientQuestionnaires
+      summary: Lista los cuestionarios asignados a un paciente.
+      tags: [Questionnaires]
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Colección de cuestionarios asignados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ../../json/v1/cuestionario.schema.json
+  /api/v1/questionnaires/{questionnaireId}/responses:
+    post:
+      operationId: submitQuestionnaireResponse
+      summary: Registra las respuestas de un cuestionario cumplimentado.
+      tags: [Questionnaires]
+      parameters:
+        - name: questionnaireId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionnaireResponse'
+      responses:
+        '202':
+          description: Respuesta aceptada para procesamiento asíncrono.
+          content:
+            application/json:
+              schema:
+                $ref: ../../json/v1/event-envelope.schema.json
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Código de error.
+        message:
+          type: string
+          description: Descripción legible del error.
+        correlation_id:
+          type: string
+          description: Identificador para rastrear el evento.
+    QuestionnaireResponse:
+      type: object
+      required: [patient_id, answers]
+      properties:
+        patient_id:
+          type: string
+        answers:
+          type: array
+          items:
+            type: object
+            required: [question_id, value]
+            properties:
+              question_id:
+                type: string
+              value:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+        submitted_at:
+          type: string
+          format: date-time
+          description: Marca temporal ISO 8601.

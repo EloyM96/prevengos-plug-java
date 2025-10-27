@@ -17,6 +17,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("au.com.dius.pact.core:model:4.6.9")
+    testImplementation("io.swagger.parser.v3:swagger-parser:2.1.16")
 }
 
 tasks.test {

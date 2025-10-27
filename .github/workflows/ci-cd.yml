@@ -9,6 +9,8 @@ on:
 env:
   JAVA_VERSION: '17'
   CONTAINER_IMAGE_NAME: prevengos/api-rest
+  E2E_BASE_URL: ${{ vars.E2E_BASE_URL || 'https://example.com' }}
+  DAST_TARGET_URL: ${{ vars.DAST_TARGET_URL || 'https://example.com' }}
 
 jobs:
   build:
@@ -30,9 +32,134 @@ jobs:
       - name: Run unit tests
         run: ./gradlew clean build
 
+  contract-tests:
+    name: Contract testing
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Configure Gradle cache
+        uses: gradle/gradle-build-action@v2
+
+      - name: Run contract suites
+        run: |
+          ./gradlew :modules:shared:test --tests '*SchemaTest*'
+          ./gradlew :modules:gateway:test --tests '*PactTest*'
+          ./gradlew :modules:api-rest:test --tests '*Contract*'
+
+  dependency-scan:
+    name: Dependency scanning
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@v3.1.0
+        with:
+          project: prevengos-plug-java
+          path: .
+          format: 'HTML'
+          args: "--failOnCVSS 7"
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: ./reports
+          if-no-files-found: ignore
+
+  sast:
+    name: SAST (SonarQube)
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: SonarQube Scan
+        if: env.SONAR_TOKEN != '' && env.SONAR_HOST_URL != ''
+        uses: sonarsource/sonarqube-scan-action@v1.1.0
+        with:
+          args: >-
+            -Dsonar.projectKey=prevengos-plug-java
+            -Dsonar.projectName=prevengos-plug-java
+
+      - name: Skip SonarQube scan (secrets missing)
+        if: env.SONAR_TOKEN == '' || env.SONAR_HOST_URL == ''
+        run: echo "SonarQube no configurado; se omite el escaneo."
+
+  dast:
+    name: DAST (OWASP ZAP)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: ${{ env.DAST_TARGET_URL }}
+          cmd_options: '-m 5 -I'
+
+  e2e:
+    name: End-to-end tests
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright dependencies
+        working-directory: tests/e2e
+        run: npm install
+
+      - name: Install Playwright browsers
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps
+
+      - name: Run E2E suite
+        env:
+          E2E_BASE_URL: ${{ env.E2E_BASE_URL }}
+        working-directory: tests/e2e
+        run: npm test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report
+          if-no-files-found: ignore
+
   docker-image:
     name: Build & Publish container image
-    needs: build
+    needs:
+      - build
+      - contract-tests
+      - dependency-scan
+      - sast
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     outputs:
