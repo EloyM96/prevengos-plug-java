@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prevengos.prl/schemas/v1/cuestionario.schema.json",
+  "title": "Cuestionario",
+  "type": "object",
+  "required": [
+    "cuestionario_id",
+    "paciente_id",
+    "plantilla_codigo",
+    "respuestas"
+  ],
+  "properties": {
+    "cuestionario_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "paciente_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "plantilla_codigo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "estado": {
+      "type": "string",
+      "enum": ["borrador", "completado", "validado"],
+      "default": "borrador"
+    },
+    "respuestas": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "required": ["pregunta_codigo", "valor"],
+        "properties": {
+          "pregunta_codigo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "valor": {
+            "type": ["string", "number", "integer", "boolean", "null"],
+            "description": "Respuesta normalizada"
+          },
+          "unidad": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "firmas": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "contentEncoding": "base64",
+        "description": "Firma codificada en base64"
+      }
+    },
+    "adjuntos": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "contentEncoding": "base64",
+        "description": "Documento adjunto codificado"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

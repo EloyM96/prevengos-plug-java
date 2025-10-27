@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prevengos.prl/schemas/v1/cita.schema.json",
+  "title": "CitaReconocimiento",
+  "type": "object",
+  "required": [
+    "cita_id",
+    "paciente_id",
+    "fecha",
+    "tipo",
+    "estado"
+  ],
+  "properties": {
+    "cita_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "paciente_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "fecha": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tipo": {
+      "type": "string",
+      "enum": ["inicial", "periodico", "extraordinario"]
+    },
+    "estado": {
+      "type": "string",
+      "enum": ["planificada", "en_curso", "finalizada", "cancelada"]
+    },
+    "aptitud": {
+      "type": "string",
+      "enum": ["apto", "apto_con_limitaciones", "no_apto", "pendiente"],
+      "description": "Resultado de aptitud final"
+    },
+    "externo_ref": {
+      "type": "string"
+    },
+    "observaciones": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

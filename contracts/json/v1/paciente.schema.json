@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://prevengos.prl/schemas/v1/paciente.schema.json",
+  "title": "Paciente",
+  "type": "object",
+  "required": [
+    "paciente_id",
+    "nif",
+    "nombre",
+    "apellidos",
+    "fecha_nacimiento",
+    "sexo"
+  ],
+  "properties": {
+    "paciente_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "nif": {
+      "type": "string",
+      "pattern": "^[0-9A-Za-z]{5,16}$",
+      "description": "Identificador fiscal o documento equivalente"
+    },
+    "nombre": {
+      "type": "string",
+      "minLength": 1
+    },
+    "apellidos": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fecha_nacimiento": {
+      "type": "string",
+      "format": "date"
+    },
+    "sexo": {
+      "type": "string",
+      "enum": ["M", "F", "X"]
+    },
+    "telefono": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "empresa_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "centro_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "externo_ref": {
+      "type": "string",
+      "description": "Identificador en Prevengos u otros sistemas"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}
