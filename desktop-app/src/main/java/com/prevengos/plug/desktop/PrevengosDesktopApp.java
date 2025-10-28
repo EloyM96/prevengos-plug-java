@@ -1,227 +1,173 @@
 package com.prevengos.plug.desktop;
 
+import com.prevengos.plug.desktop.config.DatabaseMode;
+import com.prevengos.plug.desktop.config.DesktopConfiguration;
+import com.prevengos.plug.desktop.db.ConnectionProvider;
+import com.prevengos.plug.desktop.db.ConnectionProviders;
+import com.prevengos.plug.desktop.pacientes.JdbcPacienteRepository;
+import com.prevengos.plug.desktop.pacientes.PacienteRepository;
+import com.prevengos.plug.desktop.pacientes.PacientesPane;
+
 import javafx.application.Application;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class PrevengosDesktopApp extends Application {
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public final class PrevengosDesktopApp extends Application {
+
+    private DesktopConfiguration configuration;
+    private ConnectionProvider connectionProvider;
+    private ExecutorService executorService;
+    private PacienteRepository pacienteRepository;
+    private PacientesPane pacientesPane;
 
     @Override
     public void start(Stage primaryStage) {
+        configuration = DesktopConfiguration.load();
+
+        try {
+            connectionProvider = ConnectionProviders.create(configuration);
+        } catch (RuntimeException ex) {
+            showFatalError("No se pudo inicializar la base de datos", ex);
+            return;
+        }
+
+        pacienteRepository = new JdbcPacienteRepository(connectionProvider, configuration.databaseMode());
+        executorService = Executors.newFixedThreadPool(2, new DesktopThreadFactory());
+
+        pacientesPane = new PacientesPane(pacienteRepository, executorService);
+
         BorderPane root = new BorderPane();
         root.getStyleClass().add("app-root");
+        root.setTop(buildTopBar());
+        root.setCenter(pacientesPane);
+        root.setBottom(buildStatusBar());
 
-        HBox topBar = buildTopBar();
-        root.setTop(topBar);
-
-        Label lastSyncValue = new Label("Nunca");
-        VBox heroSection = buildHeroSection();
-
-        TilePane metricCards = buildMetricCards(lastSyncValue);
-
-        ObservableList<String> queueItems = FXCollections.observableArrayList(
-            "Sincronización incremental • completada",
-            "Exportación documental • programada",
-            "Copias automáticas • 02:00"
-        );
-
-        VBox queueSection = buildQueueSection(queueItems);
-
-        VBox content = new VBox(24, heroSection, metricCards, queueSection);
-        content.setAlignment(Pos.TOP_CENTER);
-        content.setPadding(new Insets(32, 24, 48, 24));
-
-        ScrollPane scrollPane = new ScrollPane(content);
-        scrollPane.getStyleClass().add("content-scroll");
-        scrollPane.setFitToWidth(true);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        root.setCenter(scrollPane);
-
-        Scene scene = new Scene(root, 1024, 720);
+        Scene scene = new Scene(root, 1280, 760);
         scene.getStylesheets().add(
-            PrevengosDesktopApp.class
-                .getResource("/com/prevengos/plug/desktop/styles.css")
-                .toExternalForm()
+                PrevengosDesktopApp.class
+                        .getResource("/com/prevengos/plug/desktop/styles.css")
+                        .toExternalForm()
         );
 
-        primaryStage.setTitle("Prevengos PRL");
+        primaryStage.setTitle("Prevengos PRL Desktop");
         primaryStage.setScene(scene);
-        primaryStage.setMinWidth(540);
-        primaryStage.setMinHeight(560);
+        primaryStage.setMinWidth(980);
+        primaryStage.setMinHeight(680);
         primaryStage.show();
 
-        content.widthProperty().addListener((obs, oldWidth, newWidth) -> {
-            double width = newWidth == null ? 0 : newWidth.doubleValue();
-            if (width < 640) {
-                metricCards.setPrefColumns(1);
-            } else if (width < 900) {
-                metricCards.setPrefColumns(2);
-            } else {
-                metricCards.setPrefColumns(3);
-            }
-        });
-
-        setupActions(heroSection, queueItems, lastSyncValue);
-    }
-
-    private void setupActions(VBox heroSection, ObservableList<String> queueItems, Label lastSyncValue) {
-        Button syncButton = (Button) heroSection.lookup("#syncNowButton");
-        Button scheduleButton = (Button) heroSection.lookup("#scheduleButton");
-
-        if (syncButton != null) {
-            syncButton.setOnAction(event -> {
-                lastSyncValue.setText("En curso…");
-                queueItems.add(0, "Sincronización manual • en curso");
-                if (queueItems.size() > 5) {
-                    queueItems.remove(queueItems.size() - 1);
-                }
-            });
-        }
-
-        if (scheduleButton != null) {
-            scheduleButton.setOnAction(event -> {
-                Alert alert = new Alert(AlertType.INFORMATION);
-                alert.setTitle("Programación");
-                alert.setHeaderText("Programar sincronización");
-                alert.setContentText("Las automatizaciones estarán disponibles en la próxima iteración.");
-                alert.showAndWait();
-            });
-        }
+        pacientesPane.refresh();
     }
 
     private HBox buildTopBar() {
-        HBox topBar = new HBox();
+        HBox topBar = new HBox(18);
         topBar.getStyleClass().add("top-bar");
         topBar.setAlignment(Pos.CENTER_LEFT);
-        topBar.setPadding(new Insets(20, 32, 20, 32));
+        topBar.setPadding(new Insets(18, 28, 18, 28));
 
         Label brand = new Label("Prevengos Hub");
         brand.getStyleClass().add("brand");
 
+        Label environmentLabel = new Label(configuration.environmentLabel());
+        environmentLabel.getStyleClass().add("environment-label");
+
+        Label modeLabel = new Label(configuration.databaseMode().displayName());
+        modeLabel.getStyleClass().add("mode-label");
+
+        VBox environmentBox = new VBox(4, environmentLabel, modeLabel);
+        environmentBox.getStyleClass().add("environment-box");
+
         Region spacer = new Region();
-        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button preferencesButton = new Button("Preferencias");
-        preferencesButton.getStyleClass().add("ghost-button");
-        preferencesButton.setOnAction(event -> {
-            Alert alert = new Alert(AlertType.INFORMATION);
-            alert.setTitle("Preferencias");
-            alert.setHeaderText("Configuración");
-            alert.setContentText("Gestiona la configuración avanzada desde tu instancia de Prevengos en la nube.");
-            alert.showAndWait();
-        });
+        Button refreshButton = new Button("Recargar datos");
+        refreshButton.getStyleClass().add("ghost-button");
+        refreshButton.setOnAction(event -> pacientesPane.refresh());
 
-        topBar.getChildren().addAll(brand, spacer, preferencesButton);
+        topBar.getChildren().addAll(brand, environmentBox, spacer, refreshButton);
         return topBar;
     }
 
-    private VBox buildHeroSection() {
-        VBox heroSection = new VBox();
-        heroSection.getStyleClass().add("hero-section");
-        heroSection.setSpacing(18);
-        heroSection.setAlignment(Pos.CENTER_LEFT);
-        heroSection.setMaxWidth(960);
+    private HBox buildStatusBar() {
+        HBox statusBar = new HBox(12);
+        statusBar.getStyleClass().add("status-bar");
+        statusBar.setAlignment(Pos.CENTER_LEFT);
+        statusBar.setPadding(new Insets(10, 28, 10, 28));
 
-        Label title = new Label("Control centralizado de Prevengos");
-        title.getStyleClass().add("hero-title");
+        Label connectionLabel = new Label(buildConnectionSummary());
+        connectionLabel.getStyleClass().add("status-connection");
 
-        Label subtitle = new Label("Sincroniza datos críticos, automatiza respaldos y mantén tus equipos alineados desde un solo lugar.");
-        subtitle.setWrapText(true);
-        subtitle.getStyleClass().add("hero-subtitle");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button syncNowButton = new Button("Sincronizar ahora");
-        syncNowButton.setId("syncNowButton");
-        syncNowButton.getStyleClass().add("primary-button");
+        Label statusLabel = new Label();
+        statusLabel.getStyleClass().add("status-message");
+        statusLabel.textProperty().bind(pacientesPane.statusProperty());
 
-        Button scheduleButton = new Button("Programar sincronización");
-        scheduleButton.setId("scheduleButton");
-        scheduleButton.getStyleClass().add("ghost-button");
-
-        HBox actions = new HBox(16, syncNowButton, scheduleButton);
-        actions.setAlignment(Pos.CENTER_LEFT);
-
-        heroSection.getChildren().addAll(title, subtitle, actions);
-        return heroSection;
+        statusBar.getChildren().addAll(connectionLabel, spacer, statusLabel);
+        return statusBar;
     }
 
-    private TilePane buildMetricCards(Label lastSyncValue) {
-        TilePane metrics = new TilePane();
-        metrics.getStyleClass().add("metric-cards");
-        metrics.setHgap(18);
-        metrics.setVgap(18);
-        metrics.setPrefColumns(2);
-        metrics.setMaxWidth(960);
-
-        Label pendingValue = new Label("3 en cola");
-        Label environmentValue = new Label("Operativo");
-
-        metrics.getChildren().addAll(
-            createMetricCard("Última sincronización", lastSyncValue, "Mantén tus datos actualizados para los equipos en campo."),
-            createMetricCard("Registros pendientes", pendingValue, "Las tareas encoladas se procesarán automáticamente."),
-            createMetricCard("Estado del servicio", environmentValue, "Monitoreo constante de la infraestructura híbrida.")
-        );
-
-        return metrics;
+    private String buildConnectionSummary() {
+        if (configuration.databaseMode() == DatabaseMode.LOCAL) {
+            return "SQLite · " + configuration.sqlitePath();
+        }
+        return "SQL Server · " + Optional.ofNullable(configuration.hubUrl()).orElse("(URL no definida)");
     }
 
-    private VBox buildQueueSection(ObservableList<String> queueItems) {
-        VBox queueSection = new VBox();
-        queueSection.getStyleClass().add("queue-section");
-        queueSection.setSpacing(16);
-        queueSection.setAlignment(Pos.TOP_LEFT);
-        queueSection.setMaxWidth(960);
-
-        Label title = new Label("Cola de automatizaciones");
-        title.getStyleClass().add("section-title");
-
-        Label subtitle = new Label("Supervisa las tareas programadas y su prioridad desde esta consola.");
-        subtitle.setWrapText(true);
-        subtitle.getStyleClass().add("section-subtitle");
-
-        ListView<String> queueList = new ListView<>(queueItems);
-        queueList.getStyleClass().add("queue-list");
-        queueList.setPrefHeight(220);
-        queueList.setFocusTraversable(false);
-        queueList.setMouseTransparent(true);
-
-        queueSection.getChildren().addAll(title, subtitle, queueList);
-        return queueSection;
+    private void showFatalError(String message, Exception ex) {
+        Alert alert = new Alert(AlertType.ERROR);
+        alert.setTitle("Error crítico");
+        alert.setHeaderText(message);
+        alert.setContentText(Optional.ofNullable(ex.getMessage()).orElse(ex.toString()));
+        alert.showAndWait();
+        Platform.exit();
     }
 
-    private VBox createMetricCard(String title, Label valueLabel, String caption) {
-        Label titleLabel = new Label(title.toUpperCase());
-        titleLabel.getStyleClass().add("metric-title");
-
-        valueLabel.getStyleClass().add("metric-value");
-
-        Label captionLabel = new Label(caption);
-        captionLabel.setWrapText(true);
-        captionLabel.getStyleClass().add("metric-caption");
-
-        VBox card = new VBox(10, titleLabel, valueLabel, captionLabel);
-        card.getStyleClass().add("info-card");
-        card.setMinWidth(240);
-        card.setPrefWidth(280);
-        return card;
+    @Override
+    public void stop() {
+        if (executorService != null) {
+            executorService.shutdownNow();
+        }
+        if (connectionProvider != null) {
+            try {
+                connectionProvider.close();
+            } catch (Exception ignored) {
+                // no-op
+            }
+        }
     }
 
     public static void main(String[] args) {
         Application.launch(PrevengosDesktopApp.class, args);
     }
-}
 
+    private static final class DesktopThreadFactory implements ThreadFactory {
+
+        private static final AtomicInteger COUNTER = new AtomicInteger();
+
+        @Override
+        public Thread newThread(Runnable runnable) {
+            Thread thread = new Thread(runnable, "prevengos-desktop-" + COUNTER.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        }
+    }
+}
