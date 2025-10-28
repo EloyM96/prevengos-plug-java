@@ -29,7 +29,7 @@ La app obtiene la dirección del hub desde un campo de configuración generado e
 ./docs/scripts/android/setup_android_app.sh --base-url https://hub.prevengos.corp:8443/api --run-build --build-type assembleRelease
 ```
 
-El script valida la URL, añade la barra final si falta y registra el valor en `gradle.properties`. Posteriormente, al compilar, Gradle inyecta ese dato en la constante `BuildConfig.SYNC_BASE_URL`, que la app utiliza para crear el cliente Retrofit responsable de las llamadas `sincronizacion/pacientes`, `sincronizacion/cuestionarios` y `sincronizacion/pull`.【F:android-app/build.gradle†L7-L35】【F:android-app/src/main/java/com/prevengos/plug/android/di/AppContainer.java†L7-L65】【F:android-app/src/main/java/com/prevengos/plug/android/data/remote/api/PrevengosSyncApi.java†L1-L26】
+El script valida la URL, añade la barra final si falta y registra el valor en `gradle.properties`. Posteriormente, al compilar, Gradle inyecta ese dato en la constante `BuildConfig.SYNC_BASE_URL`, que la app utiliza para crear el cliente Retrofit responsable de las llamadas `sincronizacion/push` y `sincronizacion/pull`.【F:android-app/build.gradle†L7-L35】【F:android-app/src/main/java/com/prevengos/plug/android/di/AppContainer.java†L7-L65】【F:android-app/src/main/java/com/prevengos/plug/android/data/remote/api/PrevengosSyncApi.java†L1-L26】
 
 ### Verificación rápida
 
@@ -42,8 +42,8 @@ El script valida la URL, añade la barra final si falta y registra el valor en `
 * **Sincronización en segundo plano**: al abrir la app por primera vez, se programa un trabajo periódico (`prevengos-sync`) que envía y recupera cambios cada 6 horas mediante `WorkManager`. No requiere intervención manual.【F:android-app/src/main/java/com/prevengos/plug/android/PrevengosApplication.java†L4-L44】
 * **Sincronización bajo demanda**: cada alta o actualización de pacientes/cuestionarios ejecuta una sincronización inmediata para no esperar al ciclo de fondo.【F:android-app/src/main/java/com/prevengos/plug/android/ui/MainViewModel.java†L1-L162】
 * **Qué se intercambia**:
-  - Cambios locales pendientes (`dirty`) se envían como lotes JSON a los endpoints `sincronizacion/pacientes` y `sincronizacion/cuestionarios`.
-  - El hub responde con un token `nextSince` que se almacena en la tabla local `sync_metadata` para evitar duplicados.
+  - Cambios locales pendientes (`dirty`) se envían como un lote JSON único a `sincronizacion/push` junto con `source` y `correlationId`.
+  - El hub responde con el último `syncToken` aplicado, que se almacena en la tabla local `sync_metadata` para evitar duplicados.
   - Las descargas posteriores recuperan hasta 200 elementos por llamada usando `sincronizacion/pull`.【F:android-app/src/main/java/com/prevengos/plug/android/data/repository/SyncRepository.java†L1-L183】
 
 > ✅ **Consejo operativo**: si el equipo necesita forzar una sincronización (por ejemplo, tras restaurar un backup del hub), basta con crear un paciente de prueba y eliminarlo. Esto provocará el disparo inmediato de `WorkManager` y permitirá verificar la conectividad sin tocar ajustes avanzados.

@@ -1,27 +1,27 @@
 package com.prevengos.plug.desktop.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prevengos.plug.desktop.config.AppConfig;
 import com.prevengos.plug.desktop.model.Patient;
 import com.prevengos.plug.desktop.model.Questionnaire;
-import com.prevengos.plug.desktop.service.dto.PullResponse;
-import com.prevengos.plug.desktop.service.dto.SyncBatch;
-import com.prevengos.plug.desktop.service.dto.SyncEventPayload;
+import com.prevengos.plug.shared.sync.dto.CuestionarioDto;
+import com.prevengos.plug.shared.sync.dto.PacienteDto;
+import com.prevengos.plug.shared.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPushRequest;
+import com.prevengos.plug.shared.sync.dto.SyncPushResponse;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.UUID;
 
 /**
  * Coordina los envíos y pulls con el Hub siguiendo las reglas definidas en los flujos de sincronización.
  */
 public class SyncService {
-
-    private static final DateTimeFormatter ISO8601 = DateTimeFormatter.ISO_INSTANT.withZone(ZoneOffset.UTC);
 
     private final LocalStorageService localStorageService;
     private final RemoteSyncGateway remoteSyncGateway;
@@ -44,12 +44,18 @@ public class SyncService {
         List<Patient> patients = localStorageService.patientsUpdatedSince(lastPatientPush);
         List<Questionnaire> questionnaires = localStorageService.questionnairesUpdatedSince(lastQuestionnairePush);
 
-        SyncBatch batch = new SyncBatch(patients, questionnaires, appConfig.sourceSystem(), Instant.now());
-        if (batch.isEmpty()) {
+        if (patients.isEmpty() && questionnaires.isEmpty()) {
             return SyncSummary.empty();
         }
 
-        SyncBatch response = remoteSyncGateway.pushBatch(batch);
+        SyncPushRequest request = new SyncPushRequest(
+                appConfig.sourceSystem(),
+                UUID.randomUUID(),
+                patients.stream().map(this::toRemotePatient).toList(),
+                questionnaires.stream().map(this::toRemoteQuestionnaire).toList()
+        );
+
+        SyncPushResponse response = remoteSyncGateway.push(request);
         Instant now = Instant.now();
         if (!patients.isEmpty()) {
             localStorageService.updateLastPatientPush(now);
@@ -57,66 +63,132 @@ public class SyncService {
         if (!questionnaires.isEmpty()) {
             localStorageService.updateLastQuestionnairePush(now);
         }
-        return SyncSummary.from(batch, response);
+        long processedPatients = response != null ? response.processedPacientes() : patients.size();
+        long processedQuestionnaires = response != null ? response.processedCuestionarios() : questionnaires.size();
+        return new SyncSummary((int) processedPatients, (int) processedQuestionnaires,
+                (int) (processedPatients + processedQuestionnaires));
     }
 
     public SyncSummary pullUpdates() {
         Optional<String> maybeToken = localStorageService.readSyncToken();
-        String token = maybeToken.orElse(null);
-        String since = null;
-        if (token == null) {
-            Instant lastPatientPush = localStorageService.readLastPatientPush();
-            Instant lastQuestionnairePush = localStorageService.readLastQuestionnairePush();
-            Instant sinceInstant = lastPatientPush.isAfter(lastQuestionnairePush) ? lastPatientPush : lastQuestionnairePush;
-            since = ISO8601.format(sinceInstant);
+        Long token = maybeToken.filter(s -> !s.isBlank()).map(this::safeParseLong).orElse(null);
+
+        SyncPullResponse response = remoteSyncGateway.pull(token, appConfig.syncBatchSize());
+
+        int patientsApplied = 0;
+        for (PacienteDto pacienteDto : response.pacientes()) {
+            Patient patient = toLocalPatient(pacienteDto);
+            localStorageService.savePatient(patient);
+            patientsApplied++;
         }
 
-        PullResponse response = remoteSyncGateway.pull(token, since, appConfig.syncBatchSize());
-        AtomicInteger patientsApplied = new AtomicInteger();
-        AtomicInteger questionnairesApplied = new AtomicInteger();
-
-        for (SyncEventPayload event : response.getEvents()) {
-            String entityId = applyEvent(event, patientsApplied, questionnairesApplied);
-            localStorageService.getSyncEventRepository().record(
-                    event.getEntityType(),
-                    entityId,
-                    event.getEventType(),
-                    event.getPayload(),
-                    event.getSyncToken()
-            );
+        int questionnairesApplied = 0;
+        for (CuestionarioDto cuestionarioDto : response.cuestionarios()) {
+            Questionnaire questionnaire = toLocalQuestionnaire(cuestionarioDto);
+            localStorageService.saveQuestionnaire(questionnaire);
+            questionnairesApplied++;
         }
 
-        if (response.getNextToken() != null) {
-            localStorageService.updateSyncToken(response.getNextToken());
-        }
+        response.events().forEach(event -> {
+            try {
+                JsonNode payloadNode = event.payload() != null ? objectMapper.readTree(event.payload()) : objectMapper.nullNode();
+                localStorageService.getSyncEventRepository().append(
+                        "remote", event.eventId() != null ? event.eventId().toString() : "unknown",
+                        event.eventType(), payloadNode,
+                        event.source(), event.syncToken() != null ? event.syncToken() : 0L
+                );
+            } catch (Exception e) {
+                throw new IllegalStateException("No se pudo registrar el evento remoto", e);
+            }
+        });
 
-        return new SyncSummary(patientsApplied.get(), questionnairesApplied.get(), response.getEvents().size());
+        localStorageService.updateSyncToken(Long.toString(response.nextSyncToken()));
+
+        return new SyncSummary(patientsApplied, questionnairesApplied,
+                patientsApplied + questionnairesApplied + response.events().size());
     }
 
-    private String applyEvent(SyncEventPayload event,
-                              AtomicInteger patientsApplied,
-                              AtomicInteger questionnairesApplied) {
+    private PacienteDto toRemotePatient(Patient patient) {
+        OffsetDateTime createdAt = toOffset(patient.getCreatedAt());
+        OffsetDateTime updatedAt = toOffset(patient.getUpdatedAt());
+        return new PacienteDto(
+                patient.getId(),
+                patient.getDocumentNumber(),
+                patient.getFirstName(),
+                patient.getLastName(),
+                patient.getBirthDate(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                updatedAt,
+                updatedAt,
+                null
+        );
+    }
+
+    private CuestionarioDto toRemoteQuestionnaire(Questionnaire questionnaire) {
+        OffsetDateTime createdAt = toOffset(questionnaire.getCreatedAt());
+        OffsetDateTime updatedAt = toOffset(questionnaire.getUpdatedAt());
+        return new CuestionarioDto(
+                questionnaire.getId(),
+                questionnaire.getPatientId(),
+                questionnaire.getTitle(),
+                null,
+                questionnaire.getResponses(),
+                null,
+                null,
+                createdAt,
+                updatedAt,
+                updatedAt,
+                null
+        );
+    }
+
+    private Patient toLocalPatient(PacienteDto dto) {
+        Instant createdAt = toInstant(dto.createdAt());
+        Instant updatedAt = toInstant(dto.updatedAt());
+        return new Patient(
+                dto.pacienteId(),
+                dto.nombre() != null ? dto.nombre() : "",
+                dto.apellidos() != null ? dto.apellidos() : "",
+                dto.nif(),
+                dto.fechaNacimiento(),
+                createdAt,
+                updatedAt
+        );
+    }
+
+    private Questionnaire toLocalQuestionnaire(CuestionarioDto dto) {
+        Instant createdAt = toInstant(dto.createdAt());
+        Instant updatedAt = toInstant(dto.updatedAt());
+        String title = dto.plantillaCodigo() != null ? dto.plantillaCodigo() : "";
+        return new Questionnaire(
+                dto.cuestionarioId(),
+                dto.pacienteId(),
+                title,
+                dto.respuestas(),
+                createdAt,
+                updatedAt
+        );
+    }
+
+    private OffsetDateTime toOffset(Instant instant) {
+        return instant != null ? instant.atOffset(ZoneOffset.UTC) : null;
+    }
+
+    private Instant toInstant(OffsetDateTime dateTime) {
+        return dateTime != null ? dateTime.toInstant() : Instant.now();
+    }
+
+    private Long safeParseLong(String value) {
         try {
-            switch (event.getEntityType()) {
-                case "patient" -> {
-                    Patient patient = objectMapper.readValue(event.getPayload(), Patient.class);
-                    localStorageService.savePatient(patient);
-                    patientsApplied.incrementAndGet();
-                    return patient.getId().toString();
-                }
-                case "questionnaire" -> {
-                    Questionnaire questionnaire = objectMapper.readValue(event.getPayload(), Questionnaire.class);
-                    localStorageService.saveQuestionnaire(questionnaire);
-                    questionnairesApplied.incrementAndGet();
-                    return questionnaire.getId().toString();
-                }
-                default -> {
-                    // Ignorar eventos desconocidos manteniendo la idempotencia.
-                }
-            }
-            return "unknown";
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("No se pudo aplicar el evento remoto", e);
+            return Long.parseLong(value);
+        } catch (NumberFormatException ignored) {
+            return null;
         }
     }
 
@@ -136,12 +208,6 @@ public class SyncService {
 
         public static SyncSummary empty() {
             return new SyncSummary(0, 0, 0);
-        }
-
-        public static SyncSummary from(SyncBatch request, SyncBatch response) {
-            int patients = response.getPatients().isEmpty() ? request.getPatients().size() : response.getPatients().size();
-            int questionnaires = response.getQuestionnaires().isEmpty() ? request.getQuestionnaires().size() : response.getQuestionnaires().size();
-            return new SyncSummary(patients, questionnaires, patients + questionnaires);
         }
 
         public int getPatientsProcessed() {

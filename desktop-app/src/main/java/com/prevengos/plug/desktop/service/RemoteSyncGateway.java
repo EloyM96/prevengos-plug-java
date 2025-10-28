@@ -1,7 +1,8 @@
 package com.prevengos.plug.desktop.service;
 
-import com.prevengos.plug.desktop.service.dto.PullResponse;
-import com.prevengos.plug.desktop.service.dto.SyncBatch;
+import com.prevengos.plug.shared.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPushRequest;
+import com.prevengos.plug.shared.sync.dto.SyncPushResponse;
 
 /**
  * Contrato para interactuar con los endpoints de sincronización remotos descritos en
@@ -9,7 +10,7 @@ import com.prevengos.plug.desktop.service.dto.SyncBatch;
  */
 public interface RemoteSyncGateway {
 
-    SyncBatch pushBatch(SyncBatch batch);
+    SyncPushResponse push(SyncPushRequest request);
 
-    PullResponse pull(String syncToken, String since, int limit);
+    SyncPullResponse pull(Long syncToken, int limit);
 }
