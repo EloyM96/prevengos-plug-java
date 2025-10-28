@@ -1,8 +1,8 @@
 package com.prevengos.plug.shared.persistence.mapper;
 
-import com.prevengos.plug.shared.dto.PacienteDto;
 import com.prevengos.plug.shared.persistence.jdbc.PacienteRecord;
 import com.prevengos.plug.shared.persistence.jpa.PacienteEntity;
+import com.prevengos.plug.shared.sync.dto.PacienteDto;
 
 import java.time.OffsetDateTime;
 
@@ -29,7 +29,9 @@ public final class PacienteMapper {
                 entity.getCentroId(),
                 entity.getExternoRef(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getLastModified(),
+                entity.getSyncToken()
         );
     }
 
@@ -38,6 +40,10 @@ public final class PacienteMapper {
                                           OffsetDateTime updatedAt,
                                           OffsetDateTime lastModified,
                                           long syncToken) {
+        OffsetDateTime effectiveCreatedAt = createdAt != null ? createdAt : dto.createdAt();
+        OffsetDateTime effectiveUpdatedAt = updatedAt != null ? updatedAt : dto.updatedAt();
+        OffsetDateTime effectiveLastModified = lastModified != null ? lastModified : dto.lastModified();
+        long effectiveSyncToken = dto.syncToken() != null ? dto.syncToken() : syncToken;
         return new PacienteEntity(
                 dto.pacienteId(),
                 dto.nif(),
@@ -50,10 +56,10 @@ public final class PacienteMapper {
                 dto.empresaId(),
                 dto.centroId(),
                 dto.externoRef(),
-                createdAt,
-                updatedAt,
-                lastModified,
-                syncToken
+                effectiveCreatedAt,
+                effectiveUpdatedAt,
+                effectiveLastModified != null ? effectiveLastModified : OffsetDateTime.now(),
+                effectiveSyncToken
         );
     }
 
@@ -74,10 +80,10 @@ public final class PacienteMapper {
         entity.setEmpresaId(dto.empresaId());
         entity.setCentroId(dto.centroId());
         entity.setExternoRef(dto.externoRef());
-        entity.setCreatedAt(createdAt);
-        entity.setUpdatedAt(updatedAt);
-        entity.setLastModified(lastModified);
-        entity.setSyncToken(syncToken);
+        entity.setCreatedAt(createdAt != null ? createdAt : dto.createdAt());
+        entity.setUpdatedAt(updatedAt != null ? updatedAt : dto.updatedAt());
+        entity.setLastModified(lastModified != null ? lastModified : dto.lastModified());
+        entity.setSyncToken(dto.syncToken() != null ? dto.syncToken() : syncToken);
     }
 
     public static PacienteRecord toRecord(PacienteDto dto,
@@ -85,6 +91,10 @@ public final class PacienteMapper {
                                           OffsetDateTime updatedAt,
                                           OffsetDateTime lastModified,
                                           long syncToken) {
+        OffsetDateTime effectiveCreatedAt = createdAt != null ? createdAt : dto.createdAt();
+        OffsetDateTime effectiveUpdatedAt = updatedAt != null ? updatedAt : dto.updatedAt();
+        OffsetDateTime effectiveLastModified = lastModified != null ? lastModified : dto.lastModified();
+        long effectiveSyncToken = dto.syncToken() != null ? dto.syncToken() : syncToken;
         return new PacienteRecord(
                 dto.pacienteId(),
                 dto.nif(),
@@ -97,10 +107,10 @@ public final class PacienteMapper {
                 dto.empresaId(),
                 dto.centroId(),
                 dto.externoRef(),
-                createdAt,
-                updatedAt,
-                lastModified,
-                syncToken
+                effectiveCreatedAt,
+                effectiveUpdatedAt,
+                effectiveLastModified,
+                effectiveSyncToken
         );
     }
 

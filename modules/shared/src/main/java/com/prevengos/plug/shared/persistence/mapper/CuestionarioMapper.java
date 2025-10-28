@@ -1,9 +1,9 @@
 package com.prevengos.plug.shared.persistence.mapper;
 
-import com.prevengos.plug.shared.dto.CuestionarioDto;
 import com.prevengos.plug.shared.persistence.jdbc.CuestionarioRecord;
 import com.prevengos.plug.shared.persistence.jpa.CuestionarioEntity;
 import com.prevengos.plug.shared.persistence.jpa.PacienteEntity;
+import com.prevengos.plug.shared.sync.dto.CuestionarioDto;
 
 import java.time.OffsetDateTime;
 
@@ -18,11 +18,13 @@ public final class CuestionarioMapper {
                 entity.getPaciente() != null ? entity.getPaciente().getPacienteId() : null,
                 entity.getPlantillaCodigo(),
                 entity.getEstado(),
-                MapUtils.readJson(entity.getRespuestas()),
-                MapUtils.readList(entity.getFirmas()),
-                MapUtils.readList(entity.getAdjuntos()),
+                entity.getRespuestas(),
+                entity.getFirmas(),
+                entity.getAdjuntos(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getLastModified(),
+                entity.getSyncToken()
         );
     }
 
@@ -32,18 +34,22 @@ public final class CuestionarioMapper {
                                               OffsetDateTime updatedAt,
                                               OffsetDateTime lastModified,
                                               long syncToken) {
+        OffsetDateTime effectiveCreatedAt = createdAt != null ? createdAt : dto.createdAt();
+        OffsetDateTime effectiveUpdatedAt = updatedAt != null ? updatedAt : dto.updatedAt();
+        OffsetDateTime effectiveLastModified = lastModified != null ? lastModified : dto.lastModified();
+        long effectiveSyncToken = dto.syncToken() != null ? dto.syncToken() : syncToken;
         return new CuestionarioEntity(
                 dto.cuestionarioId(),
                 paciente,
                 dto.plantillaCodigo(),
                 dto.estado(),
-                MapUtils.writeJson(dto.respuestas()),
-                MapUtils.writeList(dto.firmas()),
-                MapUtils.writeList(dto.adjuntos()),
-                createdAt,
-                updatedAt,
-                lastModified,
-                syncToken
+                dto.respuestas(),
+                dto.firmas(),
+                dto.adjuntos(),
+                effectiveCreatedAt,
+                effectiveUpdatedAt,
+                effectiveLastModified != null ? effectiveLastModified : OffsetDateTime.now(),
+                effectiveSyncToken
         );
     }
 
@@ -52,18 +58,22 @@ public final class CuestionarioMapper {
                                               OffsetDateTime updatedAt,
                                               OffsetDateTime lastModified,
                                               long syncToken) {
+        OffsetDateTime effectiveCreatedAt = createdAt != null ? createdAt : dto.createdAt();
+        OffsetDateTime effectiveUpdatedAt = updatedAt != null ? updatedAt : dto.updatedAt();
+        OffsetDateTime effectiveLastModified = lastModified != null ? lastModified : dto.lastModified();
+        long effectiveSyncToken = dto.syncToken() != null ? dto.syncToken() : syncToken;
         return new CuestionarioRecord(
                 dto.cuestionarioId(),
                 dto.pacienteId(),
                 dto.plantillaCodigo(),
                 dto.estado(),
-                MapUtils.writeJson(dto.respuestas()),
-                MapUtils.writeList(dto.firmas()),
-                MapUtils.writeList(dto.adjuntos()),
-                createdAt,
-                updatedAt,
-                lastModified,
-                syncToken
+                dto.respuestas(),
+                dto.firmas(),
+                dto.adjuntos(),
+                effectiveCreatedAt,
+                effectiveUpdatedAt,
+                effectiveLastModified,
+                effectiveSyncToken
         );
     }
 
