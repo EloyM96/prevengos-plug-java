@@ -33,7 +33,7 @@ Este documento describe la arquitectura de sincronización entre el Hub PRL y lo
 * Logs estructurados JSON (`logback-spring.xml`) incluyen campos `eventType`, `source`, `syncToken`, `batchSize` y `isNew`.
 * Métricas expuestas en `/actuator/prometheus`:
   * `hub_sync_events_registered_total` (counter) por tipo de evento y origen.
-  * `hub_sync_pull_requests_total` (counter) con etiqueta `has_since`.
+  * `hub_sync_pull_requests_total` (counter) con etiqueta `has_token` para diferenciar llamadas iniciales de las incrementales.
   * `hub_sync_pull_duration_seconds` (timer) y `hub_sync_pull_batch_size` (summary).
   * `hub_sync_pacientes_processed_total` y `hub_sync_cuestionarios_processed_total` para seguimiento por fuente.
   * `hub_sync_pacientes_batch_size` y `hub_sync_cuestionarios_batch_size` describen tamaños de lote por origen.

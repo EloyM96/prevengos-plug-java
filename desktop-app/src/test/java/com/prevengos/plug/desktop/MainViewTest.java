@@ -10,9 +10,10 @@ import com.prevengos.plug.desktop.service.LocalStorageService;
 import com.prevengos.plug.desktop.service.ManualTransferService;
 import com.prevengos.plug.desktop.service.RemoteSyncGateway;
 import com.prevengos.plug.desktop.service.SyncService;
-import com.prevengos.plug.desktop.service.dto.PullResponse;
-import com.prevengos.plug.desktop.service.dto.SyncBatch;
 import com.prevengos.plug.desktop.ui.MainView;
+import com.prevengos.plug.shared.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPushRequest;
+import com.prevengos.plug.shared.sync.dto.SyncPushResponse;
 import javafx.scene.Scene;
 import javafx.scene.control.TabPane;
 import javafx.stage.Stage;
@@ -63,13 +64,13 @@ class MainViewTest extends ApplicationTest {
         );
         RemoteSyncGateway stubGateway = new RemoteSyncGateway() {
             @Override
-            public SyncBatch pushBatch(SyncBatch batch) {
-                return batch;
+            public SyncPushResponse push(SyncPushRequest request) {
+                return new SyncPushResponse(request.pacientes().size(), request.cuestionarios().size(), 0L, List.of());
             }
 
             @Override
-            public PullResponse pull(String syncToken, String since, int limit) {
-                return new PullResponse(List.of(), syncToken);
+            public SyncPullResponse pull(Long syncToken, int limit) {
+                return new SyncPullResponse(List.of(), List.of(), List.of(), syncToken != null ? syncToken : 0L);
             }
         };
         SyncService syncService = new SyncService(storage, stubGateway, config);

@@ -6,7 +6,7 @@ Aplicación de escritorio construida con **JavaFX** para gestionar pacientes y c
 
 - **Persistencia local en SQLite**: al iniciarse la aplicación crea automáticamente las tablas `pacientes`, `cuestionarios`, `sync_events` y `metadata`. Los repositorios Java encapsulan las operaciones CRUD y el estado de sincronización (`dirty`, `sync_token`, `last_modified`).
 - **Interfaz JavaFX**: la escena principal muestra el listado de pacientes, los detalles del registro activo y los cuestionarios asociados. Desde ahí es posible crear, editar o borrar entidades mediante diálogos modales.
-- **Sincronización con el Hub PRL**: un servicio dedicado empuja los cambios locales a `/sincronizacion/lotes` y consume novedades desde `/sincronizacion/pull`, manteniendo los tokens y registrando los eventos recibidos.
+- **Sincronización con el Hub PRL**: un servicio dedicado empuja los cambios locales a `/sincronizacion/push` y consume novedades desde `/sincronizacion/pull`, manteniendo los tokens y registrando los eventos recibidos.
 - **Importación/exportación offline**: los datos se serializan en JSON reutilizando el modelo de sincronización. Las acciones están accesibles desde el menú *Archivo* y permiten mover información entre estaciones desconectadas.
 - **Seguimiento de metadatos**: la barra inferior expone el último token confirmado así como las marcas temporales de los `push` y `pull` exitosos.
 - **Pruebas automatizadas**: la capa de persistencia se cubre con pruebas JUnit para garantizar la creación, actualización y limpieza de entidades.

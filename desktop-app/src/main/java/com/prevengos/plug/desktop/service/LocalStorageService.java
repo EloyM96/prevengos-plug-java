@@ -9,6 +9,7 @@ import com.prevengos.plug.desktop.repository.SyncEventRepository;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,12 +43,12 @@ public class LocalStorageService {
 
     public void savePatient(Patient patient) {
         patientRepository.upsert(patient);
-        syncEventRepository.record("patient", patient.getId().toString(), "patient-upserted", "{}", null);
+        syncEventRepository.append("patient", patient.getId().toString(), "patient-upserted", Map.of(), null, 0L);
     }
 
     public void deletePatient(UUID id) {
         patientRepository.delete(id);
-        syncEventRepository.record("patient", id.toString(), "patient-deleted", "{}", null);
+        syncEventRepository.append("patient", id.toString(), "patient-deleted", Map.of(), null, 0L);
     }
 
     public Optional<Patient> findPatient(UUID id) {
@@ -60,12 +61,12 @@ public class LocalStorageService {
 
     public void saveQuestionnaire(Questionnaire questionnaire) {
         questionnaireRepository.upsert(questionnaire);
-        syncEventRepository.record("questionnaire", questionnaire.getId().toString(), "questionnaire-upserted", "{}", null);
+        syncEventRepository.append("questionnaire", questionnaire.getId().toString(), "questionnaire-upserted", Map.of(), null, 0L);
     }
 
     public void deleteQuestionnaire(UUID id) {
         questionnaireRepository.delete(id);
-        syncEventRepository.record("questionnaire", id.toString(), "questionnaire-deleted", "{}", null);
+        syncEventRepository.append("questionnaire", id.toString(), "questionnaire-deleted", Map.of(), null, 0L);
     }
 
     public Optional<Questionnaire> findQuestionnaire(UUID id) {

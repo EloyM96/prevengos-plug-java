@@ -1,11 +1,11 @@
 package com.prevengos.plug.desktop.service.http;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prevengos.plug.desktop.config.AppConfig;
 import com.prevengos.plug.desktop.service.RemoteSyncGateway;
-import com.prevengos.plug.desktop.service.dto.PullResponse;
-import com.prevengos.plug.desktop.service.dto.SyncBatch;
+import com.prevengos.plug.shared.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPushRequest;
+import com.prevengos.plug.shared.sync.dto.SyncPushResponse;
 
 import java.io.IOException;
 import java.net.URI;
@@ -13,14 +13,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Map;
 
 /**
  * Implementación HTTP del gateway de sincronización.
  */
 public class HttpRemoteSyncGateway implements RemoteSyncGateway {
-
-    private static final TypeReference<PullResponse> PULL_RESPONSE_TYPE = new TypeReference<>() { };
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -37,25 +34,18 @@ public class HttpRemoteSyncGateway implements RemoteSyncGateway {
     }
 
     @Override
-    public SyncBatch pushBatch(SyncBatch batch) {
+    public SyncPushResponse push(SyncPushRequest requestPayload) {
         try {
-            Map<String, Object> payload = Map.of(
-                    "patients", batch.getPatients(),
-                    "questionnaires", batch.getQuestionnaires(),
-                    "sourceSystem", batch.getSourceSystem(),
-                    "generatedAt", batch.getGeneratedAt()
-            );
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(config.baseUrl() + "/sincronizacion/lotes"))
+                    .uri(URI.create(config.baseUrl() + "/sincronizacion/push"))
                     .header("Content-Type", "application/json")
-                    .header("X-Source-System", batch.getSourceSystem())
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestPayload)))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 400) {
                 throw new IllegalStateException("Error al sincronizar lote: " + response.statusCode());
             }
-            return objectMapper.readValue(response.body(), SyncBatch.class);
+            return objectMapper.readValue(response.body(), SyncPushResponse.class);
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
@@ -65,14 +55,12 @@ public class HttpRemoteSyncGateway implements RemoteSyncGateway {
     }
 
     @Override
-    public PullResponse pull(String syncToken, String since, int limit) {
+    public SyncPullResponse pull(Long syncToken, int limit) {
         try {
-            StringBuilder uriBuilder = new StringBuilder(config.baseUrl()).append("/sincronizacion/pull?limit=").append(limit);
+            StringBuilder uriBuilder = new StringBuilder(config.baseUrl())
+                    .append("/sincronizacion/pull?limit=").append(limit);
             if (syncToken != null) {
                 uriBuilder.append("&syncToken=").append(syncToken);
-            }
-            if (since != null) {
-                uriBuilder.append("&since=").append(since);
             }
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(uriBuilder.toString()))
@@ -83,7 +71,7 @@ public class HttpRemoteSyncGateway implements RemoteSyncGateway {
             if (response.statusCode() >= 400) {
                 throw new IllegalStateException("Error en pull: " + response.statusCode());
             }
-            return objectMapper.readValue(response.body(), PULL_RESPONSE_TYPE);
+            return objectMapper.readValue(response.body(), SyncPullResponse.class);
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
