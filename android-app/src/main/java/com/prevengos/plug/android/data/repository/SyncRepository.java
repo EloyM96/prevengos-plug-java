@@ -11,12 +11,11 @@ import com.prevengos.plug.android.data.remote.api.PrevengosSyncApi;
 import com.prevengos.plug.android.data.remote.model.AsyncJobResponse;
 import com.prevengos.plug.android.data.remote.model.CuestionarioPayload;
 import com.prevengos.plug.android.data.remote.model.PacientePayload;
-import com.prevengos.plug.android.data.remote.model.SyncBatch;
 import com.prevengos.plug.android.data.remote.model.SyncChangeEnvelope;
 import com.prevengos.plug.android.data.remote.model.SyncChangeItem;
+import com.prevengos.plug.android.data.remote.model.SyncEntityPushRequest;
 import com.prevengos.plug.android.data.remote.model.SyncItem;
 import com.prevengos.plug.android.data.remote.model.SyncPullResponse;
-import com.prevengos.plug.android.data.remote.model.SyncPushRequest;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.JsonDataException;
 import com.squareup.moshi.Moshi;
@@ -32,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import retrofit2.Call;
 import retrofit2.Response;
 
 public class SyncRepository {
@@ -79,41 +77,47 @@ public class SyncRepository {
             return;
         }
 
-        List<SyncBatch> batches = new ArrayList<>();
         if (hasPacientes) {
-            List<SyncItem> items = new ArrayList<>();
-            for (PacienteEntity entity : dirtyPacientes) {
-                items.add(toSyncItem(entity.getLastModified(), EntityMappers.toPayload(entity)));
-            }
-            batches.add(new SyncBatch(ENTITY_PACIENTES, items));
+            pushPacientes(metadata, dirtyPacientes);
         }
         if (hasCuestionarios) {
-            List<SyncItem> items = new ArrayList<>();
-            for (CuestionarioEntity entity : dirtyCuestionarios) {
-                items.add(toSyncItem(entity.getLastModified(), EntityMappers.toPayload(entity)));
-            }
-            batches.add(new SyncBatch(ENTITY_CUESTIONARIOS, items));
+            pushCuestionarios(metadata, dirtyCuestionarios);
         }
+    }
 
-        String lastSync = metadata != null && metadata.getLastSyncedAt() != null
-                ? formatInstant(metadata.getLastSyncedAt())
-                : null;
-        SyncPushRequest request = new SyncPushRequest(clientId, lastSync, batches);
-        Call<AsyncJobResponse> call = syncApi.push(request);
-        Response<AsyncJobResponse> response = call.execute();
+    private void pushPacientes(SyncMetadata metadata, List<PacienteEntity> dirtyPacientes) throws IOException {
+        List<SyncItem> items = new ArrayList<>();
+        for (PacienteEntity entity : dirtyPacientes) {
+            items.add(toSyncItem(entity.getLastModified(), EntityMappers.toPayload(entity)));
+        }
+        SyncEntityPushRequest request = new SyncEntityPushRequest(
+                clientId,
+                metadata != null ? metadata.getSyncToken() : null,
+                items);
+        Response<AsyncJobResponse> response = syncApi.pushPacientes(request).execute();
         if (!response.isSuccessful()) {
-            throw new IOException("Error al sincronizar cambios: " + response.code());
+            throw new IOException("Error al sincronizar pacientes: " + response.code());
         }
+        for (PacienteEntity entity : dirtyPacientes) {
+            pacienteDao.markAsClean(entity.getPacienteId());
+        }
+    }
 
-        if (hasPacientes) {
-            for (PacienteEntity entity : dirtyPacientes) {
-                pacienteDao.markAsClean(entity.getPacienteId());
-            }
+    private void pushCuestionarios(SyncMetadata metadata, List<CuestionarioEntity> dirtyCuestionarios) throws IOException {
+        List<SyncItem> items = new ArrayList<>();
+        for (CuestionarioEntity entity : dirtyCuestionarios) {
+            items.add(toSyncItem(entity.getLastModified(), EntityMappers.toPayload(entity)));
         }
-        if (hasCuestionarios) {
-            for (CuestionarioEntity entity : dirtyCuestionarios) {
-                cuestionarioDao.markAsClean(entity.getCuestionarioId());
-            }
+        SyncEntityPushRequest request = new SyncEntityPushRequest(
+                clientId,
+                metadata != null ? metadata.getSyncToken() : null,
+                items);
+        Response<AsyncJobResponse> response = syncApi.pushCuestionarios(request).execute();
+        if (!response.isSuccessful()) {
+            throw new IOException("Error al sincronizar cuestionarios: " + response.code());
+        }
+        for (CuestionarioEntity entity : dirtyCuestionarios) {
+            cuestionarioDao.markAsClean(entity.getCuestionarioId());
         }
     }
 
