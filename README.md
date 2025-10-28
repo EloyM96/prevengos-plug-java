@@ -44,3 +44,4 @@ El diagrama refleja que las apps Java se apoyan en módulos compartidos para per
 1. Documentar el procedimiento operativo para exportar e importar CSV con Prevengos desde este programa local.
 2. Completar los adaptadores JDBC hacia SQL Server en `modules/gateway` y `modules/hub-backend` para cubrir todos los casos de uso requeridos por la app y el escritorio.
 3. Sincronizar dependencias y contratos con el repositorio `prl-notifier`, asegurando que no se solapan funcionalidades y que ambos proyectos comparten la misma fuente de verdad.
+4. Revisar periódicamente la guía de [preparación para integraciones con `prl-notifier`](docs/integrations/prl-notifier-readiness.md) para garantizar que la documentación y los artefactos técnicos permanecen alineados ante nuevas funcionalidades.
