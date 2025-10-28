@@ -33,7 +33,7 @@ public class AppContainer {
     public AppContainer(Context context) {
         database = PrevengosDatabase.instance(context);
         ioExecutor = Executors.newSingleThreadExecutor();
-        okHttpClient = buildHttpClient();
+        okHttpClient = buildHttpClient(BuildConfig.APPLICATION_ID);
         retrofit = new Retrofit.Builder()
                 .baseUrl(BASE_URL)
                 .addConverterFactory(MoshiConverterFactory.create())
@@ -50,10 +50,15 @@ public class AppContainer {
                 BuildConfig.APPLICATION_ID);
     }
 
-    private OkHttpClient buildHttpClient() {
+    private OkHttpClient buildHttpClient(String clientId) {
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
         logging.setLevel(HttpLoggingInterceptor.Level.BASIC);
         return new OkHttpClient.Builder()
+                .addInterceptor(chain -> chain.proceed(
+                        chain.request()
+                                .newBuilder()
+                                .addHeader("X-Source-System", clientId)
+                                .build()))
                 .addInterceptor(logging)
                 .build();
     }
