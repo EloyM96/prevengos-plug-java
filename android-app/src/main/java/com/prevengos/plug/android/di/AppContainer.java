@@ -18,8 +18,6 @@ import retrofit2.Retrofit;
 import retrofit2.converter.moshi.MoshiConverterFactory;
 
 public class AppContainer {
-    private static final String BASE_URL = "https://api.prevengos.test/";
-
     private final PrevengosDatabase database;
     private final OkHttpClient okHttpClient;
     private final Retrofit retrofit;
@@ -35,7 +33,7 @@ public class AppContainer {
         ioExecutor = Executors.newSingleThreadExecutor();
         okHttpClient = buildHttpClient(BuildConfig.APPLICATION_ID);
         retrofit = new Retrofit.Builder()
-                .baseUrl(BASE_URL)
+                .baseUrl(resolveBaseUrl(BuildConfig.SYNC_BASE_URL))
                 .addConverterFactory(MoshiConverterFactory.create())
                 .client(okHttpClient)
                 .build();
@@ -77,5 +75,12 @@ public class AppContainer {
 
     public ExecutorService getIoExecutor() {
         return ioExecutor;
+    }
+
+    private String resolveBaseUrl(String candidate) {
+        if (candidate == null || candidate.isEmpty()) {
+            return "https://api.prevengos.test/";
+        }
+        return candidate.endsWith("/") ? candidate : candidate + "/";
     }
 }
