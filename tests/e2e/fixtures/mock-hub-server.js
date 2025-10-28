@@ -10,6 +10,7 @@ const state = {
   cuestionarios: new Map(),
   events: [],
   nextSyncToken: 1,
+  lastExport: null,
 };
 
 function jsonResponse(res, statusCode, body) {
@@ -70,6 +71,61 @@ function registerEvent(eventType, payload, source, metadataExtras = {}) {
   };
   state.events.push(event);
   return event;
+}
+
+function buildDropPath(prefix) {
+  const datePrefix = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  return `${datePrefix}/rrhh/${prefix}`;
+}
+
+function handleRrhhExport(req, res) {
+  const traceId = randomUUID();
+  const pacientesCount = state.pacientes.size;
+  const cuestionariosCount = state.cuestionarios.size;
+  const remotePath = buildDropPath('hub');
+  const stagingDir = `/var/lib/prevengos/staging/${traceId}`;
+  const archiveDir = `/var/lib/prevengos/archive/${traceId}`;
+
+  state.lastExport = {
+    traceId,
+    remotePath,
+    stagingDir,
+    archiveDir,
+    pacientesCount,
+    cuestionariosCount,
+  };
+
+  jsonResponse(res, 202, {
+    traceId,
+    remotePath,
+    stagingDir,
+    archiveDir,
+    pacientes: pacientesCount,
+    cuestionarios: cuestionariosCount,
+  });
+}
+
+function handleRrhhImport(req, res) {
+  if (!state.lastExport) {
+    jsonResponse(res, 202, {
+      processedDrops: 0,
+      pacientesImported: 0,
+      cuestionariosImported: 0,
+      archivedDrops: [],
+      failedDrops: [],
+    });
+    return;
+  }
+
+  const archivedDrop = buildDropPath('prevengos');
+
+  jsonResponse(res, 202, {
+    processedDrops: 1,
+    pacientesImported: state.lastExport.pacientesCount,
+    cuestionariosImported: state.lastExport.cuestionariosCount,
+    archivedDrops: [archivedDrop],
+    failedDrops: [],
+  });
 }
 
 function handlePacientes(req, res) {
@@ -168,6 +224,14 @@ function route(req, res) {
   }
   if (req.method === 'GET' && parsedUrl.pathname === '/sincronizacion/pull') {
     handlePull(req, res, parsedUrl.query);
+    return;
+  }
+  if (req.method === 'POST' && parsedUrl.pathname === '/rrhh/export') {
+    handleRrhhExport(req, res);
+    return;
+  }
+  if (req.method === 'POST' && parsedUrl.pathname === '/rrhh/import') {
+    handleRrhhImport(req, res);
     return;
   }
 
