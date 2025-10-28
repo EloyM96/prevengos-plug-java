@@ -1,7 +1,8 @@
 package com.prevengos.plug.gateway.sqlserver;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.prevengos.plug.shared.persistence.jdbc.SyncEventJdbcMapper;
+import com.prevengos.plug.shared.persistence.jdbc.SyncEventRecord;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -86,40 +87,7 @@ public class JdbcSyncEventGateway implements SyncEventGateway {
     private class SyncEventRowMapper implements RowMapper<SyncEventRecord> {
         @Override
         public SyncEventRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new SyncEventRecord(
-                    rs.getLong("sync_token"),
-                    getUuid(rs, "event_id"),
-                    rs.getString("event_type"),
-                    rs.getInt("version"),
-                    rs.getObject("occurred_at", OffsetDateTime.class),
-                    rs.getString("source"),
-                    getUuid(rs, "correlation_id"),
-                    getUuid(rs, "causation_id"),
-                    readJson(rs.getString("payload")),
-                    readJson(rs.getString("metadata"))
-            );
-        }
-
-        private JsonNode readJson(String value) throws SQLException {
-            if (value == null || value.isBlank()) {
-                return objectMapper.nullNode();
-            }
-            try {
-                return objectMapper.readTree(value);
-            } catch (Exception e) {
-                throw new SQLException("Unable to parse JSON column", e);
-            }
-        }
-
-        private java.util.UUID getUuid(ResultSet rs, String column) throws SQLException {
-            Object value = rs.getObject(column);
-            if (value == null) {
-                return null;
-            }
-            if (value instanceof java.util.UUID uuid) {
-                return uuid;
-            }
-            return java.util.UUID.fromString(value.toString());
+            return SyncEventJdbcMapper.mapRecord(rs, objectMapper);
         }
     }
 }

@@ -2,10 +2,10 @@ package com.prevengos.plug.hubbackend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
-import com.prevengos.plug.gateway.sqlserver.PacienteRecord;
-import com.prevengos.plug.gateway.sqlserver.SyncEventRecord;
 import com.prevengos.plug.hubbackend.dto.BatchSyncResponse;
-import com.prevengos.plug.hubbackend.dto.PacienteDto;
+import com.prevengos.plug.shared.dto.PacienteDto;
+import com.prevengos.plug.shared.persistence.jdbc.PacienteRecord;
+import com.prevengos.plug.shared.persistence.jdbc.SyncEventRecord;
 import com.prevengos.plug.hubbackend.service.PacienteService;
 import com.prevengos.plug.hubbackend.service.SyncEventService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;

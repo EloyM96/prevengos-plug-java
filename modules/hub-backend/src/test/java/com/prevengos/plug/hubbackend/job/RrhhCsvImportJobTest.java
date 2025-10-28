@@ -1,9 +1,9 @@
 package com.prevengos.plug.hubbackend.job;
 
+import com.prevengos.plug.gateway.csv.CsvFileReader;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
 import com.prevengos.plug.hubbackend.config.RrhhImportProperties;
-import com.prevengos.plug.hubbackend.io.CsvFileReader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;

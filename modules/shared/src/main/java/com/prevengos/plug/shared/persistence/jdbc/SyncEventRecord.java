@@ -1,4 +1,4 @@
-package com.prevengos.plug.gateway.sqlserver;
+package com.prevengos.plug.shared.persistence.jdbc;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
