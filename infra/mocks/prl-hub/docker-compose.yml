@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  prism-mock:
+    image: stoplight/prism:4
+    container_name: prl-hub-api-mock
+    command: >
+      mock --cors --errors
+      /opt/openapi/openapi.yaml
+    environment:
+      PRISM_LOG_LEVEL: info
+    volumes:
+      - ../../apis/prl-hub/openapi.v0.1.0.yaml:/opt/openapi/openapi.yaml:ro
+    ports:
+      - "${PRL_HUB_MOCK_PORT:-4010}:4010"
+    restart: unless-stopped

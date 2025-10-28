@@ -31,13 +31,16 @@ public class SyncEventService {
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
     private final Timer syncPullTimer;
+    private final List<SyncEventMetadataContributor> metadataContributors;
 
     public SyncEventService(SyncEventGateway syncEventGateway,
                             ObjectMapper objectMapper,
-                            MeterRegistry meterRegistry) {
+                            MeterRegistry meterRegistry,
+                            List<SyncEventMetadataContributor> metadataContributors) {
         this.syncEventGateway = syncEventGateway;
         this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
+        this.metadataContributors = metadataContributors != null ? List.copyOf(metadataContributors) : List.of();
         this.syncPullTimer = Timer
                 .builder("hub.sync.pull.duration")
                 .description("Tiempo en construir la respuesta de pull de sincronización")
@@ -49,6 +52,9 @@ public class SyncEventService {
                                          UUID correlationId, UUID causationId, JsonNode metadata) {
         JsonNode payloadNode = payload != null ? objectMapper.valueToTree(payload) : objectMapper.nullNode();
         JsonNode metadataNode = metadata != null ? metadata : objectMapper.nullNode();
+        for (SyncEventMetadataContributor contributor : metadataContributors) {
+            metadataNode = contributor.augment(objectMapper, metadataNode);
+        }
         String resolvedSource = source != null && !source.isBlank() ? source : DEFAULT_SOURCE;
         SyncEventRecord request = new SyncEventRecord(
                 null,

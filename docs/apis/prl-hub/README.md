@@ -12,7 +12,7 @@ los conectores móviles, Prevengos y servicios de terceros.
 - **PATCH**: aclaraciones descriptivas, correcciones menores o ejemplos.
 
 Se documenta el historial en la clave `x-changelog` dentro del propio documento OpenAPI. Además,
-cada nueva release debe incluir una entrada en `docs/CHANGELOG.md` (pendiente de crear) y anunciarse
+cada nueva release debe incluir una entrada en `docs/CHANGELOG.md` y anunciarse
 en el canal de integraciones.
 
 ## Artefactos
@@ -23,7 +23,7 @@ en el canal de integraciones.
 
 ## Próximos pasos
 
-1. Publicar un mock de la API con Prism o Stoplight para validar integraciones tempranas.
+1. Mantener el mock de la API publicado en `infra/mocks/prl-hub` (Prism) y actualizarlo con cada versión.
 2. Generar SDKs tipados (TypeScript/Java/Kotlin) a partir del OpenAPI 0.1.0.
 3. Completar esquemas de seguridad OIDC una vez esté disponible el Identity Provider corporativo.
 4. Añadir escenarios de errores estandarizados y ejemplos de payloads.

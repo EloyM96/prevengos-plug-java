@@ -27,7 +27,7 @@ predecible y escalable.
 | **Contratos JSON** | DTOs Java alineados con el *event envelope* en `modules/shared/contracts`. | Incorporar los modelos equivalentes a los contratos FastAPI (non-compliance, notifications, uploads) en el mismo módulo. |
 | **Datos operacionales** | Exportaciones CSV y vistas SQL documentadas para pacientes y cuestionarios. | Añadir vistas y drops para cursos, matrículas y reglas cuando los YAML del repositorio Python se confirmen. |
 | **Eventos de sincronización** | Registro persistente de jobs y eventos en tablas propias del hub. | Publicar un canal de replicación (JDBC read-only o CDC) para que `prl-notifier` consuma los eventos con latencia mínima. |
-| **Configuración** | Variables para rutas de drops y SQL Server. | Añadir archivo `.env.sample` y documentación conjunta con las variables Postgres/Redis/Moodle del monolito FastAPI. |
+| **Configuración** | Variables para rutas de drops y SQL Server + `.env.sample` raíz y plantilla `infra/local-hub/.env.example` compartidas. | Coordinar documentación conjunta con las variables Postgres/Redis/Moodle del monolito FastAPI. |
 | **Automatizaciones** | Scripts en `infra/automation` listos para *cron* y checklists de operación. | Extender los scripts para disparar webhooks o colas cuando se habiliten adaptadores de notificaciones externos. |
 
 ## Checklist de preparación continua

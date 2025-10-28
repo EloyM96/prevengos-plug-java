@@ -45,6 +45,15 @@ hub:
       cron: 0 30 3 * * *
       max-drops-per-run: 4
 
+prl:
+  notifier:
+    enabled: ${PRL_NOTIFIER_ENABLED:false}
+    base-url: ${PRL_NOTIFIER_BASE_URL:http://localhost:9000}
+    api-token: ${PRL_NOTIFIER_API_TOKEN:}
+    events-channel: ${PRL_NOTIFIER_EVENTS_CHANNEL:hub.sync}
+    events-webhook: ${PRL_NOTIFIER_EVENTS_WEBHOOK:/api/hooks/hub-sync}
+    shared-secret: ${PRL_NOTIFIER_SHARED_SECRET:}
+
 logging:
   level:
     com.prevengos.plug.hubbackend: INFO
