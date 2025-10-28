@@ -113,6 +113,6 @@ flowchart LR
 
 - Ejecutar `npm test` en `tests/e2e` para validar los CSV antes de programar los jobs.
 - Completar el checklist [`docs/quality/manual-sync-checklist.md`](../quality/manual-sync-checklist.md) después de cualquier cambio de infraestructura.
-- Cuando se habiliten importaciones reales, confirmar que `sync_events` registra tokens distintos de `0` para los pacientes y cuestionarios importados. Si los upserts se ejecutan con `syncToken=0`, ajustar `RrhhCsvImportJob` para generar eventos y documentar el cambio siguiendo la [lista de comprobación de piloto](prevengos-pilot-readiness.md).【F:modules/hub-backend/src/main/java/com/prevengos/plug/hubbackend/job/RrhhCsvImportJob.java†L131-L166】
+- Cuando se habiliten importaciones reales, confirmar que `sync_events` registra tokens distintos de `0` para los pacientes y cuestionarios importados. El job `RrhhCsvImportJob` ya emite eventos y reutiliza el token resultante en los upserts; si alguna ejecución no lo refleja, revisar logs/configuración y documentar la investigación siguiendo la [lista de comprobación de piloto](prevengos-pilot-readiness.md).【F:modules/hub-backend/src/main/java/com/prevengos/plug/hubbackend/job/RrhhCsvImportJob.java†L131-L166】
 
 Con esta automatización documentada ya no quedan elementos pendientes para declarar el intercambio CSV como 100 % cubierto.
