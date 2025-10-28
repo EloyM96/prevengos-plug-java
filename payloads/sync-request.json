@@ -1,0 +1,38 @@
+{
+  "source": "manual-testing",
+  "correlationId": "11111111-1111-4111-8111-111111111111",
+  "pacientes": [
+    {
+      "pacienteId": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0001",
+      "nif": "12345678A",
+      "nombre": "Ana",
+      "apellidos": "Prevengos",
+      "fechaNacimiento": "1990-01-01",
+      "sexo": "F",
+      "telefono": "+34911122334",
+      "email": "ana.prevengos@example.com",
+      "empresaId": "bbbbbbbb-cccc-4ddd-8eee-ffffffff0001",
+      "centroId": "cccccccc-dddd-4eee-8fff-000000000001",
+      "externoRef": "EXT-100",
+      "createdAt": "2024-07-01T08:30:00Z",
+      "updatedAt": "2024-07-01T20:45:00Z",
+      "lastModified": "2024-07-01T20:45:00Z",
+      "syncToken": null
+    }
+  ],
+  "cuestionarios": [
+    {
+      "cuestionarioId": "dddddddd-eeee-4fff-8111-111111111111",
+      "pacienteId": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeee0001",
+      "plantillaCodigo": "CS-01",
+      "estado": "completado",
+      "respuestas": "{\"resultado\":95}",
+      "firmas": "[{\"firmante\":\"dr.prevengos\"}]",
+      "adjuntos": "[]",
+      "createdAt": "2024-07-01T21:00:00Z",
+      "updatedAt": "2024-07-01T21:05:00Z",
+      "lastModified": "2024-07-01T21:05:00Z",
+      "syncToken": null
+    }
+  ]
+}
