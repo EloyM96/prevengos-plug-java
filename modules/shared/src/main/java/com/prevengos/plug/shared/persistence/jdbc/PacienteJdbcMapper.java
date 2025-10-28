@@ -40,13 +40,15 @@ public final class PacienteJdbcMapper {
                 rs.getString("nif"),
                 rs.getString("nombre"),
                 rs.getString("apellidos"),
+                rs.getObject("fecha_nacimiento", java.time.LocalDate.class),
                 rs.getString("sexo"),
-                rs.getObject("updated_at", OffsetDateTime.class),
                 rs.getString("telefono"),
                 rs.getString("email"),
                 getUuid(rs, "empresa_id"),
                 getUuid(rs, "centro_id"),
-                rs.getString("externo_ref")
+                rs.getString("externo_ref"),
+                rs.getObject("created_at", OffsetDateTime.class),
+                rs.getObject("updated_at", OffsetDateTime.class)
         );
     }
 

@@ -23,7 +23,10 @@ public class RrhhExchangeController {
     public ResponseEntity<RrhhExportResponse> triggerExport() {
         RrhhCsvExportJob.RrhhExportResult result = exportJob.runExport("manual");
         RrhhExportResponse body = new RrhhExportResponse(
-                result.targetDir().toString(),
+                result.traceId().toString(),
+                result.remotePath(),
+                result.stagingDir().toString(),
+                result.archiveDir().toString(),
                 result.pacientesCount(),
                 result.cuestionariosCount()
         );
@@ -43,7 +46,12 @@ public class RrhhExchangeController {
         return ResponseEntity.accepted().body(body);
     }
 
-    public record RrhhExportResponse(String targetDir, int pacientes, int cuestionarios) {
+    public record RrhhExportResponse(String traceId,
+                                     String remotePath,
+                                     String stagingDir,
+                                     String archiveDir,
+                                     int pacientes,
+                                     int cuestionarios) {
     }
 
     public record RrhhImportResponse(int processedDrops,

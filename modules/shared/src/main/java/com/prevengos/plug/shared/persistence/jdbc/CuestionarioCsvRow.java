@@ -8,6 +8,10 @@ public record CuestionarioCsvRow(
         UUID pacienteId,
         String plantillaCodigo,
         String estado,
+        String respuestas,
+        String firmas,
+        String adjuntos,
+        OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {
 }

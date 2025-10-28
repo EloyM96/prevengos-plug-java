@@ -32,6 +32,10 @@ public final class CuestionarioJdbcMapper {
                 getUuid(rs, "paciente_id"),
                 rs.getString("plantilla_codigo"),
                 rs.getString("estado"),
+                rs.getString("respuestas"),
+                rs.getString("firmas"),
+                rs.getString("adjuntos"),
+                rs.getObject("created_at", OffsetDateTime.class),
                 rs.getObject("updated_at", OffsetDateTime.class)
         );
     }

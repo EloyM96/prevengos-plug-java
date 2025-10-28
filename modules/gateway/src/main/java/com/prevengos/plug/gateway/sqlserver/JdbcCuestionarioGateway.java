@@ -60,8 +60,9 @@ public class JdbcCuestionarioGateway implements CuestionarioGateway {
             """;
 
     private static final String SELECT_RRHH_VIEW_SQL = """
-            SELECT cuestionario_id, paciente_id, plantilla_codigo, estado, updated_at
-            FROM dbo.vw_prl_cuestionarios
+            SELECT cuestionario_id, paciente_id, plantilla_codigo, estado, respuestas, firmas, adjuntos,
+                   created_at, updated_at
+            FROM dbo.cuestionarios
             WHERE (:since IS NULL OR updated_at >= :since)
             ORDER BY updated_at ASC;
             """;
