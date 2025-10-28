@@ -45,9 +45,10 @@ Esta guía resume la arquitectura integral del sistema para que los equipos de A
 - `prl-notifier` y proyectos anexos reciben datos desde este hub pero mantienen sus propios pipelines (FastAPI, Redis, notificaciones). Evitar duplicidades: este repositorio se centra en el circuito captura ↔ Prevengos vía SQL/CSV.
 - Versionar y comunicar cualquier cambio en contratos JSON o CSV compartidos con otros repositorios.
 
-## Próximos pasos recomendados
+## Documentación complementaria
 
-1. Documentar los formatos CSV soportados con ejemplos y validaciones en `contracts/json` y `docs/`.
-2. Implementar pruebas de integración que verifiquen lecturas/escrituras en SQL Server y la generación de CSV.
-3. Definir procedimientos operativos (cron jobs o scripts) para automatizar el intercambio de CSV y la reconciliación con Prevengos.
+- **Quickstart operativo:** [`docs/quickstart.md`](docs/quickstart.md) describe cómo levantar el entorno, ejecutar sincronizaciones manuales y disparar las pruebas.
+- **Formatos CSV:** [`docs/integrations/csv-formatos.md`](docs/integrations/csv-formatos.md) resume columnas, ejemplos y validaciones compartidas.
+- **Automatización y runbooks:** [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) detalla los jobs recomendados y cómo conectarlos con la monitorización existente.
+- **Pruebas end-to-end:** la suite Playwright (`tests/e2e`) cubre el recorrido de intercambio CSV completo.
 

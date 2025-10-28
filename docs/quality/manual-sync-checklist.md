@@ -13,6 +13,11 @@ Este procedimiento cubre la secuencia end-to-end para validar la sincronización
    ```bash
    export HUB_URL=http://localhost:8080
    export SOURCE_SYSTEM=offline-tablet
+   export SQLSERVER_HOST=localhost
+   export SQLSERVER_PORT=1433
+   export SQLSERVER_USER=prevengos_app
+   export SQLSERVER_PASSWORD=Prevengos.App.123
+   export SQLSERVER_DB=prevengos_hub
    ```
 
 ## Captura offline y sincronización
@@ -20,29 +25,33 @@ Este procedimiento cubre la secuencia end-to-end para validar la sincronización
 1. Simular la captura de pacientes en el dispositivo desconectado generando el payload JSON (`pacientes.json`).
 2. Sincronizar cuando el dispositivo recupera conectividad:
    ```bash
-   http POST "$HUB_URL/sincronizacion/pacientes" \ 
-     "X-Source-System:$SOURCE_SYSTEM" \ 
+   http POST "$HUB_URL/sincronizacion/pacientes" \
+     "X-Source-System:$SOURCE_SYSTEM" \
      < pacientes.json
    ```
 3. Repetir el proceso para los cuestionarios:
    ```bash
-   http POST "$HUB_URL/sincronizacion/cuestionarios" \ 
-     "X-Source-System:$SOURCE_SYSTEM" \ 
+   http POST "$HUB_URL/sincronizacion/cuestionarios" \
+     "X-Source-System:$SOURCE_SYSTEM" \
      < cuestionarios.json
    ```
 
 ## Verificación en base de datos
 
-1. Conectarse al contenedor de PostgreSQL:
+1. Conectarse al contenedor de SQL Server y abrir `sqlcmd` con las credenciales de aplicación:
    ```bash
-   docker compose --env-file infra/local-hub/.env -f infra/local-hub/docker-compose.yml exec postgres psql \
-     -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+   docker compose --env-file infra/local-hub/.env -f infra/local-hub/docker-compose.yml exec sqlserver \
+     /opt/mssql-tools/bin/sqlcmd -S "$SQLSERVER_HOST,$SQLSERVER_PORT" \
+     -U "$SQLSERVER_USER" -P "$SQLSERVER_PASSWORD" -d "$SQLSERVER_DB"
    ```
-2. Ejecutar las consultas de control:
+2. Ejecutar las consultas de control (usar `GO` para terminar cada bloque):
    ```sql
-   SELECT COUNT(*) FROM pacientes;
-   SELECT COUNT(*) FROM cuestionarios;
-   SELECT sync_token, event_type, source FROM sync_events ORDER BY sync_token;
+   SELECT COUNT(*) AS pacientes FROM dbo.pacientes;
+   GO
+   SELECT COUNT(*) AS cuestionarios FROM dbo.cuestionarios;
+   GO
+   SELECT sync_token, event_type, source FROM dbo.sync_events ORDER BY sync_token;
+   GO
    ```
 
 ## Pulls subsecuentes

@@ -1,0 +1,2 @@
+paciente_id;nif;nombre;apellidos;fecha_nacimiento;sexo;telefono;email;empresa_id;centro_id;externo_ref;created_at;updated_at;estado_prevengos;procesado_en;observaciones
+7c2f3c4e-1f0d-4c09-9f8b-4e4d1ef01234;12345678Z;María;Pérez Gómez;1988-05-10;F;+34911111222;maria.perez@example.com;1b2c3d4e-5f60-4a7b-9012-abcdef123456;9f8e7d6c-5b4a-3210-fedc-ba9876543210;PRV-0001;2024-03-01T08:30:00Z;2024-03-05T09:45:00Z;apto;2024-03-05T10:15:00Z;Sin incidencias
