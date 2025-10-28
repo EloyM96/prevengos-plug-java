@@ -7,6 +7,9 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Access to questionnaire data stored in the SQL Server operational database.
+ */
 public interface CuestionarioGateway {
 
     void upsertCuestionario(CuestionarioRecord cuestionario);
@@ -15,5 +18,11 @@ public interface CuestionarioGateway {
 
     List<CuestionarioRecord> findByPacienteId(UUID pacienteId);
 
-    List<CuestionarioCsvRow> fetchForRrhhExport(OffsetDateTime updatedSince);
+    /**
+     * Retrieves the questionnaires that changed after the provided timestamp and should be exported.
+     *
+     * @param since lower bound for the updated timestamp
+     * @return list of questionnaires ordered for export
+     */
+    List<CuestionarioCsvRow> fetchForRrhhExport(OffsetDateTime since);
 }
