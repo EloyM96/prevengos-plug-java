@@ -1,0 +1,2 @@
+cuestionario_id;paciente_id;plantilla_codigo;estado;respuestas;firmas;adjuntos;created_at;updated_at
+66666666-7777-8888-9999-000000000000;11111111-2222-3333-4444-555555555555;CS-REVISION;validado;"[{\"pregunta_codigo\":\"VISION\",\"valor\":{\"ojo_derecho\":\"1.0\"}}]";[];"[\"informe-revision.pdf\"]";2024-02-02T09:45:00Z;2024-02-02T09:55:00Z

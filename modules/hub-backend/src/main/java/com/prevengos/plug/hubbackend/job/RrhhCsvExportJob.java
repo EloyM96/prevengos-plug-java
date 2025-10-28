@@ -41,10 +41,12 @@ public class RrhhCsvExportJob {
 
     @Scheduled(cron = "${hub.jobs.rrhh-export.cron:0 0 3 * * *}")
     public void scheduledRun() {
-        runExport("scheduled");
+        RrhhExportResult result = runExport("scheduled");
+        logger.info("Exportación RRHH programada completada (pacientes={}, cuestionarios={}, destino={})",
+                result.pacientesCount(), result.cuestionariosCount(), result.targetDir());
     }
 
-    public void runExport(String trigger) {
+    public RrhhExportResult runExport(String trigger) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime since = now.minusHours(properties.getLookbackHours());
         logger.info("Iniciando exportación RRHH (trigger={}, since={})", trigger, since);
@@ -52,12 +54,14 @@ public class RrhhCsvExportJob {
                 .resolve(DATE_FORMATTER.format(now))
                 .resolve(properties.getProcessName());
 
-        exportPacientes(targetDir.resolve("pacientes.csv"), since);
-        exportCuestionarios(targetDir.resolve("cuestionarios.csv"), since);
-        logger.info("Exportación RRHH completada (trigger={}, targetDir={})", trigger, targetDir);
+        int pacientesCount = exportPacientes(targetDir.resolve("pacientes.csv"), since);
+        int cuestionariosCount = exportCuestionarios(targetDir.resolve("cuestionarios.csv"), since);
+        logger.info("Exportación RRHH completada (trigger={}, targetDir={}, pacientes={}, cuestionarios={})",
+                trigger, targetDir, pacientesCount, cuestionariosCount);
+        return new RrhhExportResult(targetDir, pacientesCount, cuestionariosCount);
     }
 
-    private void exportPacientes(Path file, OffsetDateTime since) {
+    private int exportPacientes(Path file, OffsetDateTime since) {
         List<PacienteCsvRow> rows = pacienteGateway.fetchForRrhhExport(since);
         List<String> headers = List.of("paciente_id", "nif", "nombre", "apellidos", "sexo",
                 "updated_at", "telefono", "email", "empresa_id", "centro_id", "externo_ref");
@@ -79,9 +83,10 @@ public class RrhhCsvExportJob {
         }
         csvFileWriter.writeCsv(file, headers, values);
         csvFileWriter.writeChecksum(file);
+        return rows.size();
     }
 
-    private void exportCuestionarios(Path file, OffsetDateTime since) {
+    private int exportCuestionarios(Path file, OffsetDateTime since) {
         List<CuestionarioCsvRow> rows = cuestionarioGateway.fetchForRrhhExport(since);
         List<String> headers = List.of("cuestionario_id", "paciente_id", "plantilla_codigo", "estado", "updated_at");
         List<List<String>> values = new ArrayList<>();
@@ -96,9 +101,13 @@ public class RrhhCsvExportJob {
         }
         csvFileWriter.writeCsv(file, headers, values);
         csvFileWriter.writeChecksum(file);
+        return rows.size();
     }
 
     private String toString(Object value) {
         return value != null ? value.toString() : "";
+    }
+
+    public record RrhhExportResult(Path targetDir, int pacientesCount, int cuestionariosCount) {
     }
 }
