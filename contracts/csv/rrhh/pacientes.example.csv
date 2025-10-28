@@ -1,0 +1,2 @@
+paciente_id;nif;nombre;apellidos;fecha_nacimiento;sexo;telefono;email;empresa_id;centro_id;externo_ref;created_at;updated_at
+11111111-2222-3333-4444-555555555555;12345678A;Ana;Prevengos;1990-05-12;F;+34911222333;ana.prevengos@example.com;aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee;ffffffff-1111-2222-3333-444444444444;EXT-ANA-001;2024-02-01T08:15:00Z;2024-02-02T09:45:00Z

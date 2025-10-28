@@ -7,7 +7,7 @@ import java.nio.file.Path;
 @ConfigurationProperties(prefix = "hub.jobs.rrhh-export")
 public class RrhhExportProperties {
 
-    private Path baseDir = Path.of("/var/prevengos/events");
+    private Path baseDir = Path.of("/var/prevengos/oficial/outgoing");
     private String processName = "rrhh";
     private String cron = "0 0 3 * * *";
     private int lookbackHours = 24;

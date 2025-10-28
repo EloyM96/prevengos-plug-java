@@ -14,10 +14,17 @@ hub:
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
   jobs:
     rrhh-export:
-      base-dir: ${RRHH_EXPORT_BASE:/var/prevengos/events}
+      base-dir: ${RRHH_EXPORT_BASE:/var/prevengos/oficial/outgoing}
       process-name: rrhh
       cron: 0 0 3 * * *
       lookback-hours: 24
+    rrhh-import:
+      inbox-dir: ${RRHH_IMPORT_INBOX:/var/prevengos/oficial/incoming}
+      archive-dir: ${RRHH_IMPORT_ARCHIVE:/var/prevengos/oficial/archive}
+      error-dir: ${RRHH_IMPORT_ERROR:/var/prevengos/oficial/error}
+      process-name: rrhh
+      cron: 0 30 3 * * *
+      max-drops-per-run: 4
 
 logging:
   level:
