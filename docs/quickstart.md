@@ -15,6 +15,17 @@ Guía unificada para levantar el entorno local, generar datos de prueba y valida
    git clone git@github.com:prevengos/prevengos-plug-java.git
    cd prevengos-plug-java
    ```
+   Este repositorio no versiona `gradle-wrapper.jar`, por lo que antes de ejecutar cualquier
+   comando `./gradlew` debes:
+
+   * Instalar Gradle manualmente con la versión soportada (8.14.3 al momento de escribir
+     esta guía), o
+   * Regenerar el wrapper ejecutando `gradle wrapper --gradle-version 8.14.3`.
+
+   Si omites este paso y ejecutas `./gradlew` desde un clon limpio, el script fallará con un
+   error similar a `Error: Could not find or load main class org.gradle.wrapper.GradleWrapperMain`
+   porque el binario del wrapper no está presente. Ajusta tu entorno según corresponda y repite
+   los comandos de este quickstart.
 3. Copia las variables de ejemplo del entorno local y ajusta credenciales si es necesario:
    ```bash
    cp infra/local-hub/.env.example infra/local-hub/.env
