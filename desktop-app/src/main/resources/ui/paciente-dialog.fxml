@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<DialogPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.prevengos.plug.desktop.ui.PacienteDialogController">
+    <contentText>Complete los datos del paciente</contentText>
+    <content>
+        <GridPane hgap="10" vgap="10">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10" />
+            </padding>
+            <columnConstraints>
+                <ColumnConstraints halignment="RIGHT" minWidth="100" />
+                <ColumnConstraints hgrow="ALWAYS" />
+            </columnConstraints>
+            <children>
+                <Label text="NIF:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                <TextField fx:id="nifField" GridPane.rowIndex="0" GridPane.columnIndex="1" promptText="00000000A" />
+
+                <Label text="Nombre:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                <TextField fx:id="nombreField" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                <Label text="Apellidos:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                <TextField fx:id="apellidosField" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+
+                <Label text="Fecha nacimiento:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                <DatePicker fx:id="fechaNacimientoPicker" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+
+                <Label text="Sexo:" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                <TextField fx:id="sexoField" GridPane.rowIndex="4" GridPane.columnIndex="1" />
+
+                <Label text="Teléfono:" GridPane.rowIndex="5" GridPane.columnIndex="0" />
+                <TextField fx:id="telefonoField" GridPane.rowIndex="5" GridPane.columnIndex="1" />
+
+                <Label text="Email:" GridPane.rowIndex="6" GridPane.columnIndex="0" />
+                <TextField fx:id="emailField" GridPane.rowIndex="6" GridPane.columnIndex="1" />
+
+                <Label text="Empresa ID:" GridPane.rowIndex="7" GridPane.columnIndex="0" />
+                <TextField fx:id="empresaField" GridPane.rowIndex="7" GridPane.columnIndex="1" promptText="UUID opcional" />
+
+                <Label text="Centro ID:" GridPane.rowIndex="8" GridPane.columnIndex="0" />
+                <TextField fx:id="centroField" GridPane.rowIndex="8" GridPane.columnIndex="1" promptText="UUID opcional" />
+
+                <Label text="Referencia externa:" GridPane.rowIndex="9" GridPane.columnIndex="0" />
+                <TextField fx:id="externoField" GridPane.rowIndex="9" GridPane.columnIndex="1" />
+            </children>
+        </GridPane>
+    </content>
+    <buttonTypes>
+        <ButtonType buttonData="OK_DONE" text="Guardar" />
+        <ButtonType buttonData="CANCEL_CLOSE" text="Cancelar" />
+    </buttonTypes>
+</DialogPane>

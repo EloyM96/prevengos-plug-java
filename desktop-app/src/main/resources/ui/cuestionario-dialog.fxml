@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<DialogPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.prevengos.plug.desktop.ui.CuestionarioDialogController">
+    <contentText>Defina los datos del cuestionario</contentText>
+    <content>
+        <GridPane hgap="10" vgap="10">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10" />
+            </padding>
+            <columnConstraints>
+                <ColumnConstraints halignment="RIGHT" minWidth="120" />
+                <ColumnConstraints hgrow="ALWAYS" />
+            </columnConstraints>
+            <children>
+                <Label text="Plantilla:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                <TextField fx:id="plantillaField" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                <Label text="Estado:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                <TextField fx:id="estadoField" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                <Label text="Respuestas (JSON):" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                <TextArea fx:id="respuestasArea" GridPane.rowIndex="2" GridPane.columnIndex="1" prefRowCount="3" wrapText="true" />
+
+                <Label text="Firmas (JSON):" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                <TextArea fx:id="firmasArea" GridPane.rowIndex="3" GridPane.columnIndex="1" prefRowCount="2" wrapText="true" />
+
+                <Label text="Adjuntos (JSON):" GridPane.rowIndex="4" GridPane.columnIndex="0" />
+                <TextArea fx:id="adjuntosArea" GridPane.rowIndex="4" GridPane.columnIndex="1" prefRowCount="2" wrapText="true" />
+            </children>
+        </GridPane>
+    </content>
+    <buttonTypes>
+        <ButtonType buttonData="OK_DONE" text="Guardar" />
+        <ButtonType buttonData="CANCEL_CLOSE" text="Cancelar" />
+    </buttonTypes>
+</DialogPane>
