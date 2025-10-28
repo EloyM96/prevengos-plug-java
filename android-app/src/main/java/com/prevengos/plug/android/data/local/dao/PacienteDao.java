@@ -24,6 +24,9 @@ public interface PacienteDao {
     @Query("SELECT * FROM pacientes WHERE is_dirty = 1")
     List<PacienteEntity> dirtyPacientes();
 
-    @Query("UPDATE pacientes SET is_dirty = 0, last_modified = :lastModified, sync_token = :syncToken WHERE paciente_id = :id")
-    void markAsSynced(String id, long lastModified, String syncToken);
+    @Query("UPDATE pacientes SET is_dirty = 0 WHERE paciente_id = :id")
+    void markAsClean(String id);
+
+    @Query("DELETE FROM pacientes WHERE paciente_id = :id")
+    void deleteById(String id);
 }

@@ -24,6 +24,9 @@ public interface CuestionarioDao {
     @Query("SELECT * FROM cuestionarios WHERE is_dirty = 1")
     List<CuestionarioEntity> dirtyCuestionarios();
 
-    @Query("UPDATE cuestionarios SET is_dirty = 0, last_modified = :lastModified, sync_token = :syncToken WHERE cuestionario_id = :id")
-    void markAsSynced(String id, long lastModified, String syncToken);
+    @Query("UPDATE cuestionarios SET is_dirty = 0 WHERE cuestionario_id = :id")
+    void markAsClean(String id);
+
+    @Query("DELETE FROM cuestionarios WHERE cuestionario_id = :id")
+    void deleteById(String id);
 }

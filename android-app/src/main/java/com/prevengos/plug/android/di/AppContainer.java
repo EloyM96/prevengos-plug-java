@@ -2,6 +2,7 @@ package com.prevengos.plug.android.di;
 
 import android.content.Context;
 
+import com.prevengos.plug.android.BuildConfig;
 import com.prevengos.plug.android.data.local.PrevengosDatabase;
 import com.prevengos.plug.android.data.remote.api.PrevengosSyncApi;
 import com.prevengos.plug.android.data.repository.CuestionarioRepository;
@@ -45,7 +46,8 @@ public class AppContainer {
                 database.pacienteDao(),
                 database.cuestionarioDao(),
                 database.syncMetadataDao(),
-                syncApi);
+                syncApi,
+                BuildConfig.APPLICATION_ID);
     }
 
     private OkHttpClient buildHttpClient() {
