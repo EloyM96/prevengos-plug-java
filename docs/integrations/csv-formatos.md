@@ -74,5 +74,6 @@ Las pruebas Playwright (`tests/e2e/tests/csv-exchange.spec.ts`) leen las plantil
 1. Que los encabezados coinciden con lo documentado.
 2. Que los valores de ejemplo respetan los formatos requeridos.
 3. Que los CSV importados contienen los metadatos esperados.
+4. Que los checksums `.sha256` presentes en el repositorio corresponden al contenido de cada CSV.
 
 Ejecuta `npm test` dentro de `tests/e2e` para confirmar la cobertura antes de liberar paquetes o habilitar validaciones manuales por equipos no técnicos.

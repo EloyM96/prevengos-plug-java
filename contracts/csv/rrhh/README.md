@@ -45,4 +45,4 @@ comunes:
 
 Se incluyen ficheros de ejemplo (`pacientes.example.csv` y
 `cuestionarios.example.csv`) con un registro ficticio para probar el parser y
-las automatizaciones.
+las automatizaciones, junto a sus checksums generados con `sha256sum`.
