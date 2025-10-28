@@ -1,9 +1,0 @@
-package com.prevengos.plug.hubbackend.repository;
-
-import com.prevengos.plug.hubbackend.domain.Paciente;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.util.UUID;
-
-public interface PacienteRepository extends JpaRepository<Paciente, UUID> {
-}

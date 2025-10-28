@@ -5,16 +5,19 @@ spring:
     property-naming-strategy: SNAKE_CASE
     serialization:
       write-dates-as-timestamps: false
-  jpa:
-    open-in-view: false
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
+
+hub:
+  sqlserver:
+    url: jdbc:sqlserver://localhost:1433;databaseName=Prevengos
+    username: prevengos
+    password: changeit
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  jobs:
+    rrhh-export:
+      base-dir: ${RRHH_EXPORT_BASE:/var/prevengos/events}
+      process-name: rrhh
+      cron: 0 0 3 * * *
+      lookback-hours: 24
 
 logging:
   level:

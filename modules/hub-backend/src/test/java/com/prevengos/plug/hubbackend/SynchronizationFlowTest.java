@@ -1,143 +1,81 @@
 package com.prevengos.plug.hubbackend;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prevengos.plug.hubbackend.dto.CuestionarioDto;
-import com.prevengos.plug.hubbackend.dto.PacienteDto;
+import com.prevengos.plug.gateway.sqlserver.CuestionarioCsvRow;
+import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
+import com.prevengos.plug.gateway.sqlserver.PacienteCsvRow;
+import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
+import com.prevengos.plug.hubbackend.config.RrhhExportProperties;
+import com.prevengos.plug.hubbackend.io.CsvFileWriter;
+import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.transaction.annotation.Transactional;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
-import java.time.LocalDate;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.when;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@Testcontainers
-@Transactional
 class SynchronizationFlowTest {
 
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("prevengos_hub")
-            .withUsername("prevengos")
-            .withPassword("prevengos");
-
-    @DynamicPropertySource
-    static void databaseProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-    }
-
-    @Autowired
-    MockMvc mockMvc;
-
-    @Autowired
-    ObjectMapper objectMapper;
-
-    @Autowired
-    JdbcTemplate jdbcTemplate;
+    @TempDir
+    Path tempDir;
 
     @Test
-    void offlineCaptureSyncsAndPullsEvents() throws Exception {
-        UUID pacienteId = UUID.randomUUID();
-        UUID cuestionarioId = UUID.randomUUID();
-        UUID empresaId = UUID.randomUUID();
-        UUID centroId = UUID.randomUUID();
+    void rrhhExportJobGeneratesCsvFiles() throws Exception {
+        PacienteGateway pacienteGateway = Mockito.mock(PacienteGateway.class);
+        CuestionarioGateway cuestionarioGateway = Mockito.mock(CuestionarioGateway.class);
 
-        List<PacienteDto> pacientes = List.of(
-                new PacienteDto(
-                        pacienteId,
+        when(pacienteGateway.fetchForRrhhExport(Mockito.any(OffsetDateTime.class)))
+                .thenReturn(List.of(new PacienteCsvRow(
+                        UUID.randomUUID(),
                         "12345A",
                         "Ana",
                         "Prevengos",
-                        LocalDate.of(1990, 5, 20),
                         "F",
+                        OffsetDateTime.now(),
                         "+34123456789",
                         "ana.prevengos@example.com",
-                        empresaId,
-                        centroId,
-                        "ext-001",
-                        OffsetDateTime.now(ZoneOffset.UTC).minusDays(1),
-                        OffsetDateTime.now(ZoneOffset.UTC))
-        );
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "EXT-1")));
 
-        List<CuestionarioDto> cuestionarios = List.of(
-                new CuestionarioDto(
-                        cuestionarioId,
-                        pacienteId,
-                        "ERGONOMIA-2024",
-                        "completo",
-                        List.of(new CuestionarioDto.RespuestaDto(
-                                "pregunta-1",
-                                5,
-                                null,
-                                Map.of("observaciones", "Sin incidencias")
-                        )),
-                        List.of("firma-1"),
-                        List.of("adjunto-1"),
-                        OffsetDateTime.now(ZoneOffset.UTC).minusHours(1),
-                        OffsetDateTime.now(ZoneOffset.UTC)
-                )
-        );
+        when(cuestionarioGateway.fetchForRrhhExport(Mockito.any(OffsetDateTime.class)))
+                .thenReturn(List.of(new CuestionarioCsvRow(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "CS-01",
+                        "completado",
+                        OffsetDateTime.now())));
 
-        mockMvc.perform(MockMvcRequestBuilders.post("/sincronizacion/pacientes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Source-System", "offline-tablet")
-                        .content(objectMapper.writeValueAsString(pacientes)))
-                .andExpect(status().isOk());
+        RrhhExportProperties properties = new RrhhExportProperties();
+        properties.setBaseDir(tempDir);
+        properties.setLookbackHours(24);
+        CsvFileWriter csvFileWriter = new CsvFileWriter();
+        RrhhCsvExportJob job = new RrhhCsvExportJob(pacienteGateway, cuestionarioGateway, csvFileWriter, properties);
 
-        mockMvc.perform(MockMvcRequestBuilders.post("/sincronizacion/cuestionarios")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Source-System", "offline-tablet")
-                        .content(objectMapper.writeValueAsString(cuestionarios)))
-                .andExpect(status().isOk());
+        job.runExport("test");
 
-        Integer pacienteCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM pacientes", Integer.class);
-        Integer cuestionarioCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cuestionarios", Integer.class);
-        Integer syncEventsCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sync_events", Integer.class);
+        Path dayDir;
+        try (var stream = Files.list(tempDir)) {
+            dayDir = stream.findFirst().orElseThrow();
+        }
+        Path processDir;
+        try (var stream = Files.list(dayDir)) {
+            processDir = stream.findFirst().orElseThrow();
+        }
+        Path pacientesCsv = processDir.resolve("pacientes.csv");
+        Path cuestionariosCsv = processDir.resolve("cuestionarios.csv");
 
-        assertThat(pacienteCount).isEqualTo(1);
-        assertThat(cuestionarioCount).isEqualTo(1);
-        assertThat(syncEventsCount).isEqualTo(2);
-
-        MvcResult firstPull = mockMvc.perform(MockMvcRequestBuilders.get("/sincronizacion/pull")
-                        .param("limit", "10"))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        JsonNode firstBody = objectMapper.readTree(firstPull.getResponse().getContentAsString());
-        assertThat(firstBody.get("events")).hasSize(2);
-        long nextToken = firstBody.get("nextToken").asLong();
-
-        MvcResult secondPull = mockMvc.perform(MockMvcRequestBuilders.get("/sincronizacion/pull")
-                        .param("syncToken", String.valueOf(nextToken))
-                        .param("limit", "10"))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        JsonNode secondBody = objectMapper.readTree(secondPull.getResponse().getContentAsString());
-        assertThat(secondBody.get("events")).isEmpty();
-        assertThat(secondBody.get("nextToken").asLong()).isEqualTo(nextToken);
+        assertThat(Files.exists(pacientesCsv)).isTrue();
+        assertThat(Files.exists(pacientesCsv.resolveSibling("pacientes.csv.sha256"))).isTrue();
+        assertThat(Files.exists(cuestionariosCsv)).isTrue();
+        assertThat(Files.readString(pacientesCsv)).contains("paciente_id");
+        assertThat(Files.readString(cuestionariosCsv)).contains("cuestionario_id");
     }
+
 }

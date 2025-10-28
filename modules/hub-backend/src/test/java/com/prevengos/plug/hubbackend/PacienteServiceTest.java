@@ -1,15 +1,20 @@
 package com.prevengos.plug.hubbackend;
 
-import com.prevengos.plug.hubbackend.domain.Paciente;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
+import com.prevengos.plug.gateway.sqlserver.PacienteRecord;
+import com.prevengos.plug.gateway.sqlserver.SyncEventRecord;
 import com.prevengos.plug.hubbackend.dto.BatchSyncResponse;
 import com.prevengos.plug.hubbackend.dto.PacienteDto;
-import com.prevengos.plug.hubbackend.repository.PacienteRepository;
-import com.prevengos.plug.hubbackend.repository.SyncEventRepository;
 import com.prevengos.plug.hubbackend.service.PacienteService;
+import com.prevengos.plug.hubbackend.service.SyncEventService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -18,22 +23,30 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
-@SpringBootTest
-@ActiveProfiles("test")
+@ExtendWith(MockitoExtension.class)
 class PacienteServiceTest {
 
-    @Autowired
+    @Mock
+    private PacienteGateway pacienteGateway;
+
+    @Mock
+    private SyncEventService syncEventService;
+
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
     private PacienteService pacienteService;
 
-    @Autowired
-    private PacienteRepository pacienteRepository;
-
-    @Autowired
-    private SyncEventRepository syncEventRepository;
+    @BeforeEach
+    void setUp() {
+        pacienteService = new PacienteService(pacienteGateway, syncEventService, meterRegistry);
+    }
 
     @Test
-    void upsertPacienteIsIdempotent() {
+    void upsertPacienteDelegatesToGateway() {
         UUID pacienteId = UUID.randomUUID();
         PacienteDto dto = new PacienteDto(
                 pacienteId,
@@ -51,17 +64,19 @@ class PacienteServiceTest {
                 OffsetDateTime.now(ZoneOffset.UTC)
         );
 
-        BatchSyncResponse response = pacienteService.upsertPacientes(List.of(dto), "test-suite");
-        assertThat(response.processed()).isEqualTo(1);
-        Paciente paciente = pacienteRepository.findById(pacienteId).orElseThrow();
-        long firstToken = paciente.getSyncToken();
-        assertThat(firstToken).isGreaterThan(0);
-        assertThat(paciente.getNombre()).isEqualTo("Ana");
+        ObjectMapper mapper = new ObjectMapper();
+        when(syncEventService.registerEvent(any(), any(), any(), any(), any(), any()))
+                .thenReturn(new SyncEventRecord(10L, UUID.randomUUID(), "paciente-upserted", 1,
+                        OffsetDateTime.now(ZoneOffset.UTC), "test", null, null,
+                        mapper.nullNode(), mapper.nullNode()));
 
-        BatchSyncResponse secondResponse = pacienteService.upsertPacientes(List.of(dto), "test-suite");
-        assertThat(secondResponse.processed()).isEqualTo(1);
-        Paciente updated = pacienteRepository.findById(pacienteId).orElseThrow();
-        assertThat(updated.getSyncToken()).isGreaterThanOrEqualTo(firstToken);
-        assertThat(syncEventRepository.count()).isEqualTo(2);
+        BatchSyncResponse response = pacienteService.upsertPacientes(List.of(dto), "test-suite");
+
+        assertThat(response.processed()).isEqualTo(1);
+        ArgumentCaptor<PacienteRecord> captor = ArgumentCaptor.forClass(PacienteRecord.class);
+        verify(pacienteGateway).upsertPaciente(captor.capture());
+        PacienteRecord saved = captor.getValue();
+        assertThat(saved.pacienteId()).isEqualTo(pacienteId);
+        assertThat(saved.syncToken()).isEqualTo(10L);
     }
 }

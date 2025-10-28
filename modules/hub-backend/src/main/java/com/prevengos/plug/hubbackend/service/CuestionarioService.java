@@ -2,10 +2,11 @@ package com.prevengos.plug.hubbackend.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prevengos.plug.hubbackend.domain.Cuestionario;
+import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
+import com.prevengos.plug.gateway.sqlserver.CuestionarioRecord;
+import com.prevengos.plug.gateway.sqlserver.SyncEventRecord;
 import com.prevengos.plug.hubbackend.dto.BatchSyncResponse;
 import com.prevengos.plug.hubbackend.dto.CuestionarioDto;
-import com.prevengos.plug.hubbackend.repository.CuestionarioRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import net.logstash.logback.argument.StructuredArguments;
 import org.slf4j.Logger;
@@ -22,18 +23,18 @@ import java.util.UUID;
 @Service
 public class CuestionarioService {
 
-    private final CuestionarioRepository cuestionarioRepository;
+    private final CuestionarioGateway cuestionarioGateway;
     private final SyncEventService syncEventService;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
 
     private static final Logger logger = LoggerFactory.getLogger(CuestionarioService.class);
 
-    public CuestionarioService(CuestionarioRepository cuestionarioRepository,
+    public CuestionarioService(CuestionarioGateway cuestionarioGateway,
                                SyncEventService syncEventService,
                                ObjectMapper objectMapper,
                                MeterRegistry meterRegistry) {
-        this.cuestionarioRepository = cuestionarioRepository;
+        this.cuestionarioGateway = cuestionarioGateway;
         this.syncEventService = syncEventService;
         this.objectMapper = objectMapper;
         this.meterRegistry = meterRegistry;
@@ -48,48 +49,45 @@ public class CuestionarioService {
         logger.info("Procesando lote de cuestionarios",
                 StructuredArguments.kv("batchSize", cuestionarios.size()),
                 StructuredArguments.kv("source", resolvedSource));
-        for (CuestionarioDto dto : cuestionarios) {
-            Cuestionario entity = cuestionarioRepository.findById(dto.cuestionarioId())
-                    .orElseGet(() -> new Cuestionario(dto.cuestionarioId()));
-            boolean isNew = entity.getCreatedAt() == null;
-            mapDtoToEntity(dto, entity);
-            if (isNew) {
-                entity.setCreatedAt(dto.createdAt() != null ? dto.createdAt() : OffsetDateTime.now(ZoneOffset.UTC));
-            }
-            entity.setUpdatedAt(dto.updatedAt() != null ? dto.updatedAt() : entity.getUpdatedAt());
-            entity.setLastModified(dto.updatedAt() != null ? dto.updatedAt() : OffsetDateTime.now(ZoneOffset.UTC));
-            cuestionarioRepository.save(entity);
 
-            var event = syncEventService.registerEvent("cuestionario-upserted", dto, source, null, null, null);
-            resolvedSource = event.getSource();
-            long syncToken = event.getSyncToken();
-            entity.setSyncToken(syncToken);
-            entity.setLastModified(OffsetDateTime.now(ZoneOffset.UTC));
-            cuestionarioRepository.save(entity);
-            identifiers.add(entity.getCuestionarioId());
+        for (CuestionarioDto dto : cuestionarios) {
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            OffsetDateTime createdAt = dto.createdAt() != null ? dto.createdAt() : now;
+            OffsetDateTime updatedAt = dto.updatedAt() != null ? dto.updatedAt() : now;
+
+            SyncEventRecord event = syncEventService.registerEvent("cuestionario-upserted", dto, resolvedSource,
+                    null, null, null);
+            resolvedSource = event.source();
+
+            CuestionarioRecord record = new CuestionarioRecord(
+                    dto.cuestionarioId(),
+                    dto.pacienteId(),
+                    dto.plantillaCodigo(),
+                    dto.estado() != null ? dto.estado() : "borrador",
+                    writeJson(dto.respuestas()),
+                    writeJson(dto.firmas()),
+                    writeJson(dto.adjuntos()),
+                    createdAt,
+                    updatedAt,
+                    now,
+                    event.syncToken() != null ? event.syncToken() : 0L
+            );
+            cuestionarioGateway.upsertCuestionario(record);
+            identifiers.add(record.cuestionarioId());
+
             meterRegistry.counter("hub.sync.cuestionarios.processed",
                     "source", resolvedSource)
                     .increment();
             logger.info("Cuestionario sincronizado",
-                    StructuredArguments.kv("cuestionarioId", entity.getCuestionarioId()),
+                    StructuredArguments.kv("cuestionarioId", record.cuestionarioId()),
                     StructuredArguments.kv("source", resolvedSource),
-                    StructuredArguments.kv("syncToken", syncToken),
-                    StructuredArguments.kv("isNew", isNew));
+                    StructuredArguments.kv("syncToken", record.syncToken()));
         }
         return new BatchSyncResponse(identifiers.size(), identifiers);
     }
 
     private String resolveSource(String source) {
         return source != null && !source.isBlank() ? source : SyncEventService.DEFAULT_SOURCE;
-    }
-
-    private void mapDtoToEntity(CuestionarioDto dto, Cuestionario entity) {
-        entity.setPacienteId(dto.pacienteId());
-        entity.setPlantillaCodigo(dto.plantillaCodigo());
-        entity.setEstado(dto.estado() != null ? dto.estado() : "borrador");
-        entity.setRespuestas(writeJson(dto.respuestas()));
-        entity.setFirmas(writeJson(dto.firmas()));
-        entity.setAdjuntos(writeJson(dto.adjuntos()));
     }
 
     private String writeJson(Object value) {
