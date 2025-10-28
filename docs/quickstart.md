@@ -8,6 +8,7 @@ Guía unificada para levantar el entorno local, generar datos de prueba y valida
    * JDK 21
    * Docker Engine 24+ y Docker Compose V2
    * Node.js 20+ (para las pruebas end-to-end)
+   * [HTTPie](https://httpie.io/) 3.x (o, si lo prefieres, `curl`) para ejecutar las llamadas REST de sincronización
 2. Clona el repositorio y entra al directorio raíz:
    ```bash
    git clone git@github.com:prevengos/prevengos-plug-java.git
@@ -44,11 +45,13 @@ curl http://localhost:8080/actuator/health
 1. Genera payloads `pacientes.json` y `cuestionarios.json` utilizando las plantillas de `contracts/json` o exportando desde la app Android.
 2. Envía ambos lotes con un único `POST /sincronizacion`:
    ```bash
-   curl -X POST http://localhost:8080/sincronizacion \
-     -H 'Content-Type: application/json' \
-     -d @payloads/sync-request.json
+    curl -X POST http://localhost:8080/sincronizacion \
+      -H 'Content-Type: application/json' \
+      -d @payloads/sync-request.json
    ```
-   El backend devolverá el `last_sync_token` procesado y los identificadores consolidados.
+   El repositorio incluye un ejemplo en [`payloads/sync-request.json`](../payloads/sync-request.json)
+   que puedes adaptar con los datos generados a partir de `contracts/json`. El backend
+   devolverá el `last_sync_token` procesado y los identificadores consolidados.
 3. Recupera cambios pendientes con `GET /sincronizacion` especificando el token recibido:
    ```bash
    curl "http://localhost:8080/sincronizacion?afterToken=${LAST_TOKEN}&limit=50"

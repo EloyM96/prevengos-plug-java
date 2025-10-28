@@ -10,7 +10,7 @@ predecible y escalable.
 - **Sincronización local**: las apps Android y de escritorio consumen los
   contratos serializados en `modules/shared` y se comunican con el backend del
   hub (`modules/hub-backend`) mediante los endpoints documentados en OpenAPI
-  (`infra/openapi/hub-backend.yml`). El backend opera exclusivamente contra la
+  ([`docs/apis/prl-hub/openapi.v0.1.0.yaml`](../apis/prl-hub/openapi.v0.1.0.yaml)). El backend opera exclusivamente contra la
   base de datos SQL Server y los intercambios CSV de Prevengos.
 - **Intercambio CSV operativo**: los procedimientos descritos en
   [`docs/integrations/drops.md`](./drops.md) y el runbook de RRHH cubren la

@@ -11,6 +11,7 @@ Asegúrate de tener instalados los componentes indicados en la guía rápida:
 - **JDK 21** para construir y ejecutar los módulos Java.
 - **Docker Engine 24+** y **Docker Compose V2** para levantar SQL Server y el backend Spring Boot.
 - **Node.js 20+** si piensas ejecutar las pruebas end-to-end alojadas en `tests/e2e`.
+- **HTTPie 3.x** (o `curl`) para invocar los endpoints de `/sincronizacion` descritos en la guía.
 
 Clona el repositorio y copia el entorno de ejemplo:
 
@@ -44,8 +45,9 @@ curl http://localhost:8080/actuator/health
 1. Genera `pacientes.json` y `cuestionarios.json` empleando las plantillas del directorio `contracts/json`
    o exportando desde la app Android/desktop.
 2. Sigue los pasos del [checklist de sincronización manual](../quality/manual-sync-checklist.md)
-   para subir los payloads mediante los scripts de `scripts/manual-sync`, validar las tablas con `sqlcmd`
-   y ejecutar pulls subsecuentes.
+   para subir los payloads usando HTTPie o `curl`, validar las tablas con `sqlcmd`
+   y ejecutar pulls subsecuentes. Puedes apoyarte en el ejemplo [`payloads/sync-request.json`](../../payloads/sync-request.json)
+   para construir el lote de prueba.
 3. Registra los resultados y métricas observadas (por ejemplo, `hub.sync.events.registered`) con los
    endpoints de `/actuator` mencionados en la guía rápida.
 
@@ -54,8 +56,8 @@ curl http://localhost:8080/actuator/health
 - Si necesitas un motor alternativo para pipelines o entornos sin SQL Server, utiliza la composición
   de [`infra/postgresql`](../../infra/postgresql/README.md), recordando que su alcance es exclusivamente
   de pruebas.
-- Los scripts reutilizables para generar lotes, limpiar tablas y consultar diagnósticos están en
-  [`scripts/manual-sync`](../../scripts/manual-sync/README.md).
+- Si necesitas automatizar la carga o limpieza de tablas, adapta los ejemplos de la checklist y el
+  script [`scripts/export_rrhh.sh`](../../scripts/export_rrhh.sh) como base para nuevas utilidades.
 
 Con estos pasos el repositorio queda listo para recorridos manuales en local, desde la generación de
 payloads hasta la verificación de la base de datos y la observabilidad del hub.
