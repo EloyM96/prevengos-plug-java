@@ -108,7 +108,7 @@ flowchart LR
 
 ## Validación continua
 
-- Ejecutar `npm test` en `tests/e2e` para validar los CSV antes de programar los jobs.
+- Ejecutar `npm test` en `tests/e2e` para validar cabeceras y checksums de los CSV antes de programar los jobs.
 - Completar el checklist [`docs/quality/manual-sync-checklist.md`](../quality/manual-sync-checklist.md) después de cualquier cambio de infraestructura.
 
 Con esta automatización documentada ya no quedan elementos pendientes para declarar el intercambio CSV como 100 % cubierto.

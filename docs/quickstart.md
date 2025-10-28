@@ -78,6 +78,7 @@ curl http://localhost:8080/actuator/health
    npm test
    ```
    Por defecto se levanta un mock server local que replica `/sincronizacion` y `/actuator`; si tienes un hub operativo, establece `E2E_BASE_URL=http://localhost:8080` antes de lanzar `npm test`.
+   La suite comprueba que las plantillas CSV mantienen las cabeceras oficiales y que los checksums `.sha256` coinciden.
 
 ## 6. Validar el intercambio CSV
 

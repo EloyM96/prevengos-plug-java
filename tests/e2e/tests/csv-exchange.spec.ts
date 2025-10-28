@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'fs';
+import { createHash } from 'crypto';
 import * as path from 'path';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
@@ -54,6 +55,19 @@ function loadCsv(fileName: string) {
     }, {}),
   );
   return { header, records };
+}
+
+function loadChecksum(fileName: string) {
+  const checksumPath = path.resolve(CSV_DIR, `${fileName}.sha256`);
+  const content = readFileSync(checksumPath, 'utf-8').trim();
+  const [hash] = content.split(/\s+/);
+  return { hash, raw: content };
+}
+
+function computeSha256(fileName: string) {
+  const filePath = path.resolve(CSV_DIR, fileName);
+  const buffer = readFileSync(filePath);
+  return createHash('sha256').update(buffer).digest('hex');
 }
 
 const PACIENTE_MOCK = {
@@ -131,6 +145,11 @@ test.describe('Intercambio CSV RRHH', () => {
     expect(paciente.created_at).toMatch(ISO_INSTANT_REGEX);
     expect(paciente.updated_at).toMatch(ISO_INSTANT_REGEX);
 
+    const pacientesChecksum = loadChecksum('pacientes.example.csv');
+    expect(pacientesChecksum.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(pacientesChecksum.raw).toContain('pacientes.example.csv');
+    expect(computeSha256('pacientes.example.csv')).toEqual(pacientesChecksum.hash);
+
     const cuestionariosCsv = loadCsv('cuestionarios.example.csv');
     expect(cuestionariosCsv.header).toEqual([
       'cuestionario_id',
@@ -153,6 +172,11 @@ test.describe('Intercambio CSV RRHH', () => {
     expectJson(cuestionario.adjuntos || '[]');
     expect(cuestionario.created_at).toMatch(ISO_INSTANT_REGEX);
     expect(cuestionario.updated_at).toMatch(ISO_INSTANT_REGEX);
+
+    const cuestionariosChecksum = loadChecksum('cuestionarios.example.csv');
+    expect(cuestionariosChecksum.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(cuestionariosChecksum.raw).toContain('cuestionarios.example.csv');
+    expect(computeSha256('cuestionarios.example.csv')).toEqual(cuestionariosChecksum.hash);
   });
 
   test('la exportación e importación exponen metadatos coherentes', async ({ request }) => {
