@@ -57,38 +57,40 @@ function loadCsv(fileName: string) {
 }
 
 const PACIENTE_MOCK = {
-  paciente_id: '3f9f55bc-3b92-4bf2-8c3c-61116941a9bd',
+  pacienteId: '3f9f55bc-3b92-4bf2-8c3c-61116941a9bd',
   nif: '87654321B',
   nombre: 'Lucía',
   apellidos: 'Prevengos',
-  fecha_nacimiento: '1992-07-21',
+  fechaNacimiento: '1992-07-21',
   sexo: 'F',
   telefono: '+34911111222',
   email: 'lucia.prevengos@example.com',
-  empresa_id: '1c6431e6-0a60-4c3f-a1e5-91dc66712b43',
-  centro_id: '18a9d2af-6530-42cf-a93a-5b625492159a',
-  externo_ref: 'EXT-200',
-  created_at: '2024-03-04T09:30:00Z',
-  updated_at: '2024-03-04T11:15:00Z',
+  empresaId: '1c6431e6-0a60-4c3f-a1e5-91dc66712b43',
+  centroId: '18a9d2af-6530-42cf-a93a-5b625492159a',
+  externoRef: 'EXT-200',
+  createdAt: '2024-03-04T09:30:00Z',
+  updatedAt: '2024-03-04T11:15:00Z',
+  lastModified: '2024-03-04T11:15:00Z',
 };
 
 const CUESTIONARIO_MOCK = {
-  cuestionario_id: '94dfb93e-27a2-4c69-86f9-9b7031af8720',
-  paciente_id: PACIENTE_MOCK.paciente_id,
-  plantilla_codigo: 'AUTO-CS-01',
+  cuestionarioId: '94dfb93e-27a2-4c69-86f9-9b7031af8720',
+  pacienteId: PACIENTE_MOCK.pacienteId,
+  plantillaCodigo: 'AUTO-CS-01',
   estado: 'validado',
-  respuestas: [
+  respuestas: JSON.stringify([
     {
       pregunta_codigo: 'peso',
       valor: '65',
       unidad: 'kg',
       metadata: { instrumento: 'balanza-medica' },
     },
-  ],
-  firmas: ['dr.prevengos'],
-  adjuntos: ['informe-prevengos.pdf'],
-  created_at: '2024-03-04T11:30:00Z',
-  updated_at: '2024-03-04T11:30:00Z',
+  ]),
+  firmas: JSON.stringify(['dr.prevengos']),
+  adjuntos: JSON.stringify(['informe-prevengos.pdf']),
+  createdAt: '2024-03-04T11:30:00Z',
+  updatedAt: '2024-03-04T11:30:00Z',
+  lastModified: '2024-03-04T11:30:00Z',
 };
 
 function expectJson(value: string) {
@@ -157,17 +159,19 @@ test.describe('Intercambio CSV RRHH', () => {
     const health = await request.get('/actuator/health');
     await expect(health).toBeOK();
 
-    const pacienteResponse = await request.post('/sincronizacion/pacientes', {
-      headers: { 'X-Source-System': 'android-app' },
-      data: [PACIENTE_MOCK],
+    const pushPayload = {
+      source: 'playwright-suite',
+      correlationId: '11111111-aaaa-bbbb-cccc-222222222222',
+      pacientes: [PACIENTE_MOCK],
+      cuestionarios: [CUESTIONARIO_MOCK],
+    };
+    const pushResponse = await request.post('/sincronizacion/push', {
+      data: pushPayload,
     });
-    await expect(pacienteResponse).toBeOK();
-
-    const cuestionarioResponse = await request.post('/sincronizacion/cuestionarios', {
-      headers: { 'X-Source-System': 'desktop-app' },
-      data: [CUESTIONARIO_MOCK],
-    });
-    await expect(cuestionarioResponse).toBeOK();
+    await expect(pushResponse).toBeOK();
+    const pushBody = await pushResponse.json();
+    const processedPacientes = pushBody.processedPacientes ?? pushBody.processed_pacientes ?? 0;
+    expect(processedPacientes).toBeGreaterThanOrEqual(1);
 
     const exportResponse = await request.post('/rrhh/export');
     expect([200, 202]).toContain(exportResponse.status());

@@ -4,11 +4,11 @@ import com.prevengos.plug.gateway.csv.CsvFileReader;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
 import com.prevengos.plug.hubbackend.config.RrhhImportProperties;
-import com.prevengos.plug.shared.persistence.jdbc.CuestionarioRecord;
-import com.prevengos.plug.shared.persistence.jdbc.PacienteRecord;
 import com.prevengos.plug.shared.contracts.v1.Cuestionario;
 import com.prevengos.plug.shared.contracts.v1.Paciente;
 import com.prevengos.plug.shared.csv.CsvRecord;
+import com.prevengos.plug.shared.sync.dto.CuestionarioDto;
+import com.prevengos.plug.shared.sync.dto.PacienteDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -135,7 +135,7 @@ public class RrhhCsvImportJob {
             CsvRecord normalized = paciente.toCsvRecord();
             OffsetDateTime createdAt = paciente.createdAt().orElse(now);
             OffsetDateTime updatedAt = paciente.updatedAt().orElse(now);
-            PacienteRecord dbRecord = new PacienteRecord(
+            PacienteDto dto = new PacienteDto(
                     paciente.pacienteId(),
                     paciente.nif(),
                     paciente.nombre(),
@@ -150,9 +150,9 @@ public class RrhhCsvImportJob {
                     createdAt,
                     updatedAt,
                     updatedAt,
-                    0L
+                    null
             );
-            pacienteGateway.upsertPaciente(dbRecord);
+            pacienteGateway.upsert(dto, updatedAt, 0L);
         }
         return records.size();
     }
@@ -165,7 +165,7 @@ public class RrhhCsvImportJob {
             CsvRecord normalized = cuestionario.toCsvRecord();
             OffsetDateTime createdAt = cuestionario.createdAt().orElse(now);
             OffsetDateTime updatedAt = cuestionario.updatedAt().orElse(now);
-            CuestionarioRecord dbRecord = new CuestionarioRecord(
+            CuestionarioDto dto = new CuestionarioDto(
                     cuestionario.cuestionarioId(),
                     cuestionario.pacienteId(),
                     cuestionario.plantillaCodigo(),
@@ -176,9 +176,9 @@ public class RrhhCsvImportJob {
                     createdAt,
                     updatedAt,
                     updatedAt,
-                    0L
+                    null
             );
-            cuestionarioGateway.upsertCuestionario(dbRecord);
+            cuestionarioGateway.upsert(dto, updatedAt, 0L);
         }
         return records.size();
     }

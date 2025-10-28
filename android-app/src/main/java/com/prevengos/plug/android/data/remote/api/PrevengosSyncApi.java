@@ -1,8 +1,8 @@
 package com.prevengos.plug.android.data.remote.api;
 
-import com.prevengos.plug.android.data.remote.model.AsyncJobResponse;
-import com.prevengos.plug.android.data.remote.model.SyncEntityPushRequest;
-import com.prevengos.plug.android.data.remote.model.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPushRequest;
+import com.prevengos.plug.shared.sync.dto.SyncPushResponse;
 
 import retrofit2.Call;
 import retrofit2.http.Body;
@@ -11,15 +11,11 @@ import retrofit2.http.POST;
 import retrofit2.http.Query;
 
 public interface PrevengosSyncApi {
-    @POST("sincronizacion/pacientes")
-    Call<AsyncJobResponse> pushPacientes(@Body SyncEntityPushRequest request);
-
-    @POST("sincronizacion/cuestionarios")
-    Call<AsyncJobResponse> pushCuestionarios(@Body SyncEntityPushRequest request);
+    @POST("sincronizacion/push")
+    Call<SyncPushResponse> push(@Body SyncPushRequest request);
 
     @GET("sincronizacion/pull")
     Call<SyncPullResponse> pull(
-            @Query("since") String since,
-            @Query("entities") String entities,
+            @Query("syncToken") Long syncToken,
             @Query("limit") Integer limit);
 }
