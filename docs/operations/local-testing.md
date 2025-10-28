@@ -48,8 +48,8 @@ curl http://localhost:8080/actuator/health
    para subir los payloads usando HTTPie o `curl`, validar las tablas con `sqlcmd`
    y ejecutar pulls subsecuentes. Puedes apoyarte en el ejemplo [`payloads/sync-request.json`](../../payloads/sync-request.json)
    para construir el lote de prueba.
-3. Registra los resultados y métricas observadas (por ejemplo, `hub.sync.events.registered`) con los
-   endpoints de `/actuator` mencionados en la guía rápida.
+3. Registra los resultados consultando `docker compose logs hub-backend` y revisando la tabla `sync_events`
+   con `sqlcmd` para confirmar que los tokens avanzan tras cada push.
 
 ## 4. Variantes y soporte
 

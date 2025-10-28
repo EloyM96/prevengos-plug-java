@@ -19,11 +19,11 @@ Prevengos solicite un reenvío.
 
 ## 2. Reejecutar la exportación
 
-1. Lanzar manualmente el job desde el hub:
+1. Lanzar manualmente el job desde el hub (recibirás `202 Accepted` con los metadatos del drop):
    ```bash
    curl -X POST http://localhost:8080/rrhh/export
    ```
-   Anotar el `traceId` y la ruta `remotePath` devueltos.
+   Anotar el `traceId` y la ruta `remotePath` devueltos (puede ser `null` si la entrega remota está deshabilitada).
 2. Confirmar que se han generado los CSV en la carpeta de staging y en el archivo local:
    ```bash
    ls "$RRHH_EXPORT_BASE/$(date +%Y%m%d)/rrhh/hub"

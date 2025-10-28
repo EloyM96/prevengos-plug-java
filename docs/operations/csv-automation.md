@@ -21,7 +21,7 @@ Describe tareas y scripts recomendados para mover CSV entre el hub local y Preve
    - Utilizar `rsync` o `lftp` con validación de checksum.
 3. **Procesador automático**:
    - Servicio Spring Boot programado (`@Scheduled`) que monitoriza la carpeta de importación y ejecuta los adaptadores de `modulos/hub-backend`.
-   - Registra resultados en `import_audit` y emite métricas `hub_rrhh_import_success`.
+   - Registra resultados en las tablas `rrhh_exports`, `file_drop_log` e `import_audit` para auditoría posterior.
 
 > ℹ️ **Variables obligatorias**: definir `HUB_EXPORT_DIR`, `HUB_IMPORT_DIR`, `PREVENGOS_DROP_URI`, `PREVENGOS_SFTP_USER` y `PREVENGOS_SFTP_KEY` (o `PREVENGOS_SMB_CREDENTIALS`) en los archivos de entorno o en los `Environment=` de los servicios `systemd`. Documentar en la wiki interna la procedencia y vigencia de cada secreto.
 
@@ -92,7 +92,6 @@ flowchart LR
 ## Monitoreo
 
 - **Logs de job**: enviar a `journald` o archivos rotados en `/var/log/prevengos/`. Registrar `trace_id`, hora y volumen transferido.
-- **Métricas Prometheus**: `hub_rrhh_export_success`, `hub_rrhh_import_success`, `hub_csv_checksum_mismatch`.
 - **Alertas**: integrar con el runbook [`docs/operations/rrhh-export-runbook.md`](rrhh-export-runbook.md).
 
 ### Validación de logs y métricas en el entorno objetivo
@@ -100,11 +99,12 @@ flowchart LR
 1. **Logs de exportación/importación**
    - `journalctl -u export-rrhh.service --since "today"` y `journalctl -u import-rrhh.service --since "today"` deben mostrar la ruta parametrizada (`PREVENGOS_DROP_URI`) y el tamaño transferido.
    - En despliegues con archivo de log, validar que `/var/log/prevengos/export_rrhh.log` rota correctamente y contiene checksums.
-2. **Métricas Prometheus**
-   - Consultar el endpoint `/actuator/prometheus` del hub y verificar que existen muestras recientes para `hub_rrhh_export_success` y `hub_rrhh_import_success`.
-   - Configurar alertas de umbral (<1 transferencia exitosa en 24 h) y simular una transferencia forzada para confirmar que se generan los `events`.
-3. **Auditoría SQL Server**
-   - Ejecutar `SELECT TOP 10 * FROM file_drop_log ORDER BY created_at DESC;` y `SELECT TOP 10 * FROM import_audit ORDER BY created_at DESC;` para comprobar que se registran entradas con el `trace_id` del despliegue.
+2. **Auditoría SQL Server**
+   - Ejecutar `SELECT TOP 10 * FROM rrhh_exports ORDER BY created_at DESC;` para validar que se registran las ejecuciones manuales y programadas.
+   - Revisar `file_drop_log` e `import_audit` para comprobar entregas e ingestas con el `trace_id` esperado.
+3. **Supervisión externa**
+   - Configurar alertas de ausencia de movimientos (por ejemplo, menos de una fila nueva en `rrhh_exports` en 24 h).
+   - Complementar con dashboards en Grafana/Kibana leyendo los logs estructurados del hub.
 
 ## Validación continua
 

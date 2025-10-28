@@ -33,12 +33,17 @@ curl http://localhost:8080/actuator/health
 
 ## 3. Verificar salud y observabilidad del hub
 
-1. Comprueba el estado general del backend y que expose los endpoints de observabilidad:
+1. Comprueba el estado general del backend:
    ```bash
    curl http://localhost:8080/actuator/health
-   curl "http://localhost:8080/actuator/metrics/hub.sync.events.registered?tag=event_type:paciente-upserted"
    ```
-   La segunda llamada devuelve el contador Micrometer utilizado por los tests automatizados para validar la ingesta de eventos.
+2. Verifica que la base almacena eventos y tokens monotónicos conectándote a SQL Server (la contraseña proviene de `infra/local-hub/.env`):
+   ```bash
+   docker compose --env-file infra/local-hub/.env -f infra/local-hub/docker-compose.yml exec sqlserver \
+     /opt/mssql-tools/bin/sqlcmd -S localhost,1433 -U ${MSSQL_APP_USER} -P ${MSSQL_APP_PASSWORD} -d ${MSSQL_DB} \
+     -Q "SELECT TOP 10 sync_token, event_type, source FROM dbo.sync_events ORDER BY sync_token DESC;"
+   ```
+   Deberías observar tokens crecientes conforme se registran pushes.
 
 ## 4. Ejecutar una sincronización manual
 
@@ -65,11 +70,13 @@ curl http://localhost:8080/actuator/health
    ./gradlew :modules:hub-backend:test
    ```
    La suite ejecuta pruebas de integración con SQL Server real (Testcontainers) que cubren push, pull y generación de CSV.
+   > Si trabajas sin wrapper (`./gradlew`), ejecuta el mismo comando con `gradle` en su lugar.
 2. **Aplicación Android (repositorio y parsing remoto):**
    ```bash
    ./gradlew :android-app:test
    ```
    Los tests mockean Retrofit para validar el marcado de lotes, los pulls incrementales y el borrado de cuestionarios en conflicto.
+   > También puedes ejecutar `gradle :android-app:test` si no tienes wrapper local.
 3. **Pruebas end-to-end del hub:**
    ```bash
    cd tests/e2e
@@ -86,7 +93,18 @@ curl http://localhost:8080/actuator/health
    ```bash
    curl -X POST http://localhost:8080/rrhh/export -H 'Content-Type: application/json' -d '{"trigger_type":"manual"}'
    ```
-   Los CSV se generan en `RRHH_EXPORT_BASE` y se archivan en `RRHH_EXPORT_ARCHIVE`.
+   El endpoint responde con `202 Accepted` y un cuerpo `JSON` similar a:
+   ```json
+   {
+     "trace_id": "<UUID>",
+     "remote_path": "/prevengos/oficial/rrhh",
+     "staging_dir": "/var/prevengos/oficial/outgoing/<trace>",
+     "archive_dir": "/var/prevengos/oficial/archive/<trace>",
+     "pacientes": 1,
+     "cuestionarios": 1
+   }
+   ```
+   Los CSV se generan en `RRHH_EXPORT_BASE` y se archivan en `RRHH_EXPORT_ARCHIVE`. Si la entrega remota está deshabilitada `remote_path` vendrá como `null`.
 3. Para un recorrido completo sobre automatizaciones y carpetas de drop, revisa [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md).
 
 ## 7. Preparar entregables de cliente

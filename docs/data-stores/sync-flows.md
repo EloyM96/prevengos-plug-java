@@ -25,19 +25,18 @@ Este documento describe la arquitectura de sincronización entre el Hub PRL y lo
 
 1. **Reintentos automáticos**: ante errores transitorios (5xx o timeouts) reintentar con backoff exponencial, manteniendo el payload original.
 2. **Reprocesar desde token**: identificar el último `syncToken` confirmado y repetir el pull con `limit` reducido para evitar sobresaturación.
-3. **Replay completo**: en incidentes mayores, iniciar pulls desde `syncToken=0` y paginar hasta alcanzar el token actual. Registrar métricas de duración (`hub_sync_pull_duration_seconds`).
+3. **Replay completo**: en incidentes mayores, iniciar pulls desde `syncToken=0` y paginar hasta alcanzar el token actual. Registrar la duración del proceso en los logs operativos.
 4. **Limpieza de estado local**: si una caché local queda corrupta, limpiar el storage y reconstruirlo reanudando pulls desde `0`.
 
 ## Observabilidad
 
 * Logs estructurados JSON (`logback-spring.xml`) incluyen campos `eventType`, `source`, `syncToken`, `batchSize` y `isNew`.
-* Métricas expuestas en `/actuator/prometheus`:
-  * `hub_sync_events_registered_total` (counter) por tipo de evento y origen.
-  * `hub_sync_pull_requests_total` (counter) con etiqueta `has_token` para diferenciar llamadas iniciales de las incrementales.
-  * `hub_sync_pull_duration_seconds` (timer) y `hub_sync_pull_batch_size` (summary).
-  * `hub_sync_pacientes_processed_total` y `hub_sync_cuestionarios_processed_total` para seguimiento por fuente.
-  * `hub_sync_pacientes_batch_size` y `hub_sync_cuestionarios_batch_size` describen tamaños de lote por origen.
-* Utilizar dashboards (Prometheus/Grafana) para graficar latencias de pull y tamaños de lote.
+* El historial de sincronización se puede auditar directamente en SQL Server mediante las tablas `sync_events`, `pacientes`
+  y `cuestionarios`. Consultas comunes:
+  * `SELECT TOP 20 sync_token, event_type, source FROM dbo.sync_events ORDER BY sync_token DESC;`
+  * `SELECT paciente_id, sync_token, updated_at FROM dbo.pacientes ORDER BY updated_at DESC;`
+* Para observabilidad operativa integrar los logs en ELK/Splunk y configurar alertas sobre la ausencia de nuevos `sync_events`
+  en un intervalo dado.
 
 ## Integración con pruebas
 

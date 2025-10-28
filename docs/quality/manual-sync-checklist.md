@@ -76,8 +76,8 @@ Este procedimiento cubre la secuencia end-to-end para validar la sincronización
    > curl "$HUB_URL/sincronizacion/pull?syncToken=<NEXT_TOKEN>&limit=100"
    > ```
 3. Registrar métricas y logs:
-   * Logs estructurados visibles con `docker compose logs hub-backend`.
-   * Métricas en `http://localhost:8080/actuator/prometheus` (`hub_sync_*`).
+* Logs estructurados visibles con `docker compose logs hub-backend`.
+* Consultas SQL directas (`SELECT TOP 10 sync_token, event_type FROM dbo.sync_events ORDER BY sync_token DESC;`) para validar la progresión de tokens.
 
 ## Limpieza y repetición
 

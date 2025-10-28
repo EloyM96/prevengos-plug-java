@@ -20,7 +20,7 @@ public class RrhhExchangeController {
     }
 
     @PostMapping("/export")
-    public ResponseEntity<RrhhExportResponse> triggerExport() {
+    public ResponseEntity<RrhhExportResponse> triggerExport() throws Exception {
         RrhhCsvExportJob.RrhhExportResult result = exportJob.runExport("manual");
         RrhhExportResponse body = new RrhhExportResponse(
                 result.traceId().toString(),

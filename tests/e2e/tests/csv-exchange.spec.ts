@@ -211,7 +211,7 @@ test.describe('Intercambio CSV RRHH', () => {
 
     const remotePath = exportBody.remotePath ?? exportBody.remote_path;
     if (remotePath) {
-      expect(remotePath).toMatch(/^\d{8}\/rrhh\//);
+      expect(remotePath).toMatch(/^(\/?prevengos\/|\d{8}\/rrhh\/)/);
     }
 
     const stagingDir = exportBody.stagingDir ?? exportBody.staging_dir;

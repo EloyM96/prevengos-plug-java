@@ -1,7 +1,7 @@
 package com.prevengos.plug.hubbackend;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import com.prevengos.plug.hubbackend.persistence.SqlServerTestResource;
 import com.prevengos.plug.shared.sync.dto.CuestionarioDto;
 import com.prevengos.plug.shared.sync.dto.PacienteDto;
@@ -64,9 +64,6 @@ class HubBackendIntegrationTest {
 
     @Autowired
     private NamedParameterJdbcTemplate jdbcTemplate;
-
-    @Autowired
-    private RrhhCsvExportJob rrhhCsvExportJob;
 
     @BeforeAll
     static void prepareDirectories() throws IOException {
@@ -210,14 +207,25 @@ class HubBackendIntegrationTest {
         assertThat(emptyResponse.events()).isEmpty();
         assertThat(emptyResponse.nextSyncToken()).isEqualTo(lastToken);
 
-        RrhhCsvExportJob.RrhhExportResult exportResult = rrhhCsvExportJob.runExport("integration-test");
-        Path pacientesCsv = exportResult.stagingDir().resolve("pacientes.csv");
-        Path cuestionariosCsv = exportResult.stagingDir().resolve("cuestionarios.csv");
+        MvcResult exportResult = mockMvc.perform(post("/rrhh/export"))
+                .andExpect(status().isAccepted())
+                .andReturn();
+
+        JsonNode exportJson = objectMapper.readTree(
+                exportResult.getResponse().getContentAsByteArray());
+        assertThat(exportJson.get("trace_id").asText()).isNotBlank();
+        assertThat(exportJson.get("remote_path").isNull()).isTrue();
+
+        Path pacientesCsv = Path.of(exportJson.get("staging_dir").asText(), "pacientes.csv");
+        Path cuestionariosCsv = Path.of(exportJson.get("staging_dir").asText(), "cuestionarios.csv");
+        Path archiveDir = Path.of(exportJson.get("archive_dir").asText());
 
         assertThat(Files.exists(pacientesCsv)).isTrue();
         assertThat(Files.exists(cuestionariosCsv)).isTrue();
         assertThat(Files.readString(pacientesCsv)).contains("12345A");
         assertThat(Files.readString(cuestionariosCsv)).contains("CS-01");
+        assertThat(Files.exists(archiveDir.resolve("pacientes.csv"))).isTrue();
+        assertThat(Files.exists(archiveDir.resolve("cuestionarios.csv"))).isTrue();
 
         Integer exportsLogged = jdbcTemplate.getJdbcTemplate().queryForObject(
                 "SELECT COUNT(*) FROM dbo.rrhh_exports",

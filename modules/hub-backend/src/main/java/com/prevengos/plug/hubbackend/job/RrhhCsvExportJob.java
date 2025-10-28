@@ -69,11 +69,13 @@ public class RrhhCsvExportJob {
                 archiveDir.resolve(cuestionariosCsv.getFileName() + ".sha256"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
         String remoteDir = properties.getDelivery().getRemoteDir();
-        if (properties.getDelivery().isEnabled() && remoteDir != null) {
+        String remotePathPrefix = null;
+        if (properties.getDelivery().isEnabled() && remoteDir != null && !remoteDir.isBlank()) {
             fileTransferClient.deliver(pacientesCsv, remoteDir + "/" + pacientesCsv.getFileName());
             fileTransferClient.deliver(cuestionariosCsv, remoteDir + "/" + cuestionariosCsv.getFileName());
             logFileDrop(traceId, pacientesCsv, remoteDir);
             logFileDrop(traceId, cuestionariosCsv, remoteDir);
+            remotePathPrefix = remoteDir;
         }
 
         UUID exportId = UUID.randomUUID();
@@ -84,7 +86,7 @@ public class RrhhCsvExportJob {
                 properties.getProcessName(),
                 properties.getOrigin(),
                 properties.getOperator(),
-                remoteDir,
+                remotePathPrefix,
                 archiveDir.toString(),
                 pacientes.size(),
                 cuestionarios.size(),
@@ -93,7 +95,7 @@ public class RrhhCsvExportJob {
                 OffsetDateTime.now()
         ));
 
-        return new RrhhExportResult(traceId, stagingDir, archiveDir, pacientes.size(), cuestionarios.size());
+        return new RrhhExportResult(traceId, stagingDir, archiveDir, pacientes.size(), cuestionarios.size(), remotePathPrefix);
     }
 
     private void logFileDrop(UUID traceId, Path file, String remoteDir) {
@@ -123,6 +125,7 @@ public class RrhhCsvExportJob {
                                    Path stagingDir,
                                    Path archiveDir,
                                    int pacientesCount,
-                                   int cuestionariosCount) {
+                                   int cuestionariosCount,
+                                   String remotePath) {
     }
 }
