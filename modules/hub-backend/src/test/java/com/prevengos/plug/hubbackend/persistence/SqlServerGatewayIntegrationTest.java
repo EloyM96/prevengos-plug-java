@@ -11,12 +11,12 @@ import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
 import com.prevengos.plug.gateway.sqlserver.RrhhAuditGateway;
 import com.prevengos.plug.gateway.sqlserver.SyncEventGateway;
 import com.prevengos.plug.hubbackend.config.RrhhExportProperties;
+import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import com.prevengos.plug.shared.persistence.jdbc.CuestionarioCsvRow;
 import com.prevengos.plug.shared.persistence.jdbc.CuestionarioRecord;
 import com.prevengos.plug.shared.persistence.jdbc.PacienteCsvRow;
 import com.prevengos.plug.shared.persistence.jdbc.PacienteRecord;
 import com.prevengos.plug.shared.persistence.jdbc.SyncEventRecord;
-import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,9 +31,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -52,39 +49,21 @@ class SqlServerGatewayIntegrationTest {
 
     private static NamedParameterJdbcTemplate hubJdbcTemplate;
     private static NamedParameterJdbcTemplate prevengosJdbcTemplate;
-    private static boolean initialized = false;
 
     @BeforeAll
-    static void setUpDatabases() throws Exception {
-        if (initialized) {
-            return;
-        }
-
-        String adminUrl = SQL_SERVER.getJdbcUrl() + ";databaseName=master";
-        try (Connection connection = DriverManager.getConnection(adminUrl, SQL_SERVER.getUsername(), SQL_SERVER.getPassword());
-             Statement stmt = connection.createStatement()) {
-            stmt.execute("IF DB_ID('Prevengos') IS NULL CREATE DATABASE Prevengos;");
-            stmt.execute("IF DB_ID('prl_hub') IS NULL CREATE DATABASE prl_hub;");
-        }
-
-        createPrevengosSchema();
-        applySqlServerMigrations();
-
-        hubJdbcTemplate = new NamedParameterJdbcTemplate(createDataSource("prl_hub"));
-        prevengosJdbcTemplate = new NamedParameterJdbcTemplate(createDataSource("Prevengos"));
-
-        initialized = true;
+    static void setUpDatabases() {
+        SqlServerTestResource.initializeDatabases(SQL_SERVER);
+        SqlServerTestResource.applyHubMigrations(SQL_SERVER);
+        DriverManagerDataSource hubDataSource = SqlServerTestResource.createDataSource(SQL_SERVER, "prl_hub");
+        DriverManagerDataSource prevengosDataSource = SqlServerTestResource.createDataSource(SQL_SERVER, "Prevengos");
+        hubJdbcTemplate = new NamedParameterJdbcTemplate(hubDataSource);
+        prevengosJdbcTemplate = new NamedParameterJdbcTemplate(prevengosDataSource);
     }
 
     @BeforeEach
     void cleanDatabase() {
-        hubJdbcTemplate.getJdbcTemplate().execute("DELETE FROM dbo.sync_events");
-        hubJdbcTemplate.getJdbcTemplate().execute("DELETE FROM dbo.cuestionarios");
-        hubJdbcTemplate.getJdbcTemplate().execute("DELETE FROM dbo.pacientes");
-        prevengosJdbcTemplate.getJdbcTemplate().execute("DELETE FROM dbo.CuestionarioRespuestas");
-        prevengosJdbcTemplate.getJdbcTemplate().execute("DELETE FROM dbo.Cuestionarios");
-        prevengosJdbcTemplate.getJdbcTemplate().execute("DELETE FROM dbo.Citas");
-        prevengosJdbcTemplate.getJdbcTemplate().execute("DELETE FROM dbo.Pacientes");
+        SqlServerTestResource.cleanHubSchema(hubJdbcTemplate);
+        SqlServerTestResource.cleanPrevengosSchema(prevengosJdbcTemplate);
     }
 
     @Test
@@ -244,113 +223,6 @@ class SqlServerGatewayIntegrationTest {
         assertThat(Files.exists(pacientesCsv.resolveSibling("pacientes.csv.sha256"))).isTrue();
         assertThat(Files.exists(cuestionariosCsv.resolveSibling("cuestionarios.csv.sha256"))).isTrue();
         assertThat(Files.exists(result.archiveDir().resolve("pacientes.csv"))).isTrue();
-    }
-
-    private static DriverManagerDataSource createDataSource(String databaseName) {
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-        dataSource.setUrl(SQL_SERVER.getJdbcUrl() + ";databaseName=" + databaseName);
-        dataSource.setUsername(SQL_SERVER.getUsername());
-        dataSource.setPassword(SQL_SERVER.getPassword());
-        return dataSource;
-    }
-
-    private static void createPrevengosSchema() throws Exception {
-        String url = SQL_SERVER.getJdbcUrl() + ";databaseName=Prevengos";
-        try (Connection connection = DriverManager.getConnection(url, SQL_SERVER.getUsername(), SQL_SERVER.getPassword());
-             Statement stmt = connection.createStatement()) {
-            stmt.execute("""
-                    IF OBJECT_ID('dbo.Pacientes', 'U') IS NULL
-                    BEGIN
-                        CREATE TABLE dbo.Pacientes (
-                            PacienteGuid UNIQUEIDENTIFIER PRIMARY KEY,
-                            NIF NVARCHAR(16) NOT NULL,
-                            Nombre NVARCHAR(160) NOT NULL,
-                            Apellidos NVARCHAR(160) NOT NULL,
-                            FechaNacimiento DATE NULL,
-                            Sexo NVARCHAR(1) NOT NULL,
-                            Telefono NVARCHAR(32) NULL,
-                            Email NVARCHAR(160) NULL,
-                            EmpresaGuid UNIQUEIDENTIFIER NULL,
-                            CentroGuid UNIQUEIDENTIFIER NULL,
-                            PrevengosId NVARCHAR(128) NULL,
-                            UltimaActualizacion DATETIMEOFFSET(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-                            Activo BIT NOT NULL DEFAULT 1
-                        );
-                    END
-                    """);
-
-            stmt.execute("""
-                    IF OBJECT_ID('dbo.Citas', 'U') IS NULL
-                    BEGIN
-                        CREATE TABLE dbo.Citas (
-                            CitaGuid UNIQUEIDENTIFIER PRIMARY KEY,
-                            PacienteGuid UNIQUEIDENTIFIER NOT NULL,
-                            FechaHora DATETIMEOFFSET(7) NOT NULL,
-                            Tipo NVARCHAR(32) NOT NULL,
-                            Estado NVARCHAR(32) NOT NULL,
-                            Aptitud NVARCHAR(32) NULL,
-                            ReferenciaExterna NVARCHAR(128) NULL,
-                            UltimaActualizacion DATETIMEOFFSET(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-                            EsPRL BIT NOT NULL DEFAULT 1
-                        );
-                    END
-                    """);
-
-            stmt.execute("""
-                    IF OBJECT_ID('dbo.Cuestionarios', 'U') IS NULL
-                    BEGIN
-                        CREATE TABLE dbo.Cuestionarios (
-                            CuestionarioGuid UNIQUEIDENTIFIER PRIMARY KEY,
-                            PacienteGuid UNIQUEIDENTIFIER NOT NULL,
-                            PlantillaCodigo NVARCHAR(64) NOT NULL,
-                            Estado NVARCHAR(32) NOT NULL,
-                            UltimaActualizacion DATETIMEOFFSET(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-                            EsPRL BIT NOT NULL DEFAULT 1
-                        );
-                    END
-                    """);
-
-            stmt.execute("""
-                    IF OBJECT_ID('dbo.CuestionarioRespuestas', 'U') IS NULL
-                    BEGIN
-                        CREATE TABLE dbo.CuestionarioRespuestas (
-                            RespuestaGuid UNIQUEIDENTIFIER PRIMARY KEY,
-                            CuestionarioGuid UNIQUEIDENTIFIER NOT NULL,
-                            PreguntaCodigo NVARCHAR(64) NOT NULL,
-                            Valor NVARCHAR(MAX) NULL,
-                            Unidad NVARCHAR(32) NULL,
-                            MetadataJson NVARCHAR(MAX) NULL,
-                            UltimaActualizacion DATETIMEOFFSET(7) NOT NULL DEFAULT SYSUTCDATETIME(),
-                            EsPRL BIT NOT NULL DEFAULT 1
-                        );
-                    END
-                    """);
-        }
-    }
-
-    private static void applySqlServerMigrations() throws Exception {
-        Path migrationsDir = Path.of("..", "..", "migrations", "sqlserver").toAbsolutePath();
-        String url = SQL_SERVER.getJdbcUrl() + ";databaseName=prl_hub";
-        try (Connection connection = DriverManager.getConnection(url, SQL_SERVER.getUsername(), SQL_SERVER.getPassword())) {
-            runSqlServerScript(connection, migrationsDir.resolve("V2__create_prl_hub_tables.sql"));
-            runSqlServerScript(connection, migrationsDir.resolve("V3__rrhh_audit_tables.sql"));
-            runSqlServerScript(connection, migrationsDir.resolve("V1__create_views.sql"));
-        }
-    }
-
-    private static void runSqlServerScript(Connection connection, Path script) throws Exception {
-        String content = Files.readString(script);
-        String[] statements = content.split("(?im)^\\s*GO\\s*$");
-        for (String raw : statements) {
-            String statement = raw.trim();
-            if (statement.isEmpty()) {
-                continue;
-            }
-            try (Statement stmt = connection.createStatement()) {
-                stmt.execute(statement);
-            }
-        }
     }
 
 }
