@@ -1,5 +1,7 @@
 # Prevengos Desktop App
 
+> ⚠️ **Estado del proyecto**: el cliente de escritorio se encuentra en fase de diseño. Este README documenta el alcance previsto y se actualizará cuando exista una implementación disponible.
+
 Aplicación de escritorio construida con **JavaFX** para gestionar pacientes y cuestionarios offline y sincronizarlos con el Hub PRL descrito en `docs/data-stores/sync-flows.md`.
 
 ## Características principales

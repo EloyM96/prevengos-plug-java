@@ -1,8 +1,10 @@
 # Puesta en marcha de la app Android Prevengos Plug
 
-Este procedimiento guía a equipos no técnicos en la configuración inicial de la aplicación Android, desde la comprobación de requisitos hasta la sincronización con el hub PRL. Sigue los pasos en orden y marca cada hito para garantizar una instalación homogénea.
+> ⚠️ **Estado del documento**: la app Android aún no cuenta con una implementación disponible. Esta guía recoge el diseño previsto y servirá como base cuando existan builds funcionales. Consulta el roadmap del repositorio para seguir el avance de los tickets de cliente móvil.
 
-## 1. Requisitos previos
+Este procedimiento se activará junto con la entrega del primer prototipo; hasta entonces, usa esta referencia para planificar capacidades y dependencias.
+
+## 1. Requisitos previos _(diseño propuesto)_
 
 | Elemento | Detalle |
 | --- | --- |
@@ -14,14 +16,14 @@ Este procedimiento guía a equipos no técnicos en la configuración inicial de 
 
 > 💡 **Consejo**: si no dispones de Java 17 instalado, solicita al área de sistemas que valide la instalación antes de continuar.
 
-## 2. Preparar el entorno de compilación
+## 2. Preparar el entorno de compilación _(pendiente de implementación)_
 
 1. Clona o descarga el repositorio `prevengos-plug-java` en el puesto de trabajo operativo.
 2. Abre una consola en la carpeta raíz del proyecto.
 3. Ejecuta el script de soporte para registrar la URL del hub (ver apartado siguiente). El script creará o actualizará el archivo `gradle.properties` sin necesidad de editar código manualmente.【F:docs/scripts/android/setup_android_app.sh†L1-L102】
 4. (Opcional) Si es la primera vez que se compila, deja que Gradle descargue las dependencias; puede tardar varios minutos.
 
-## 3. Configurar el endpoint del hub
+## 3. Configurar el endpoint del hub _(pendiente de implementación)_
 
 La app obtiene la dirección del hub desde un campo de configuración generado en tiempo de compilación. Por defecto apunta a `https://api.prevengos.test/`, pero puede cambiarse sin editar código usando el script `docs/scripts/android/setup_android_app.sh`:
 
@@ -31,13 +33,13 @@ La app obtiene la dirección del hub desde un campo de configuración generado e
 
 El script valida la URL, añade la barra final si falta y registra el valor en `gradle.properties`. Posteriormente, al compilar, Gradle inyecta ese dato en la constante `BuildConfig.SYNC_BASE_URL`, que la app utiliza para crear el cliente Retrofit responsable de las llamadas `sincronizacion/push` y `sincronizacion/pull`.【F:android-app/build.gradle†L7-L35】【F:android-app/src/main/java/com/prevengos/plug/android/di/AppContainer.java†L7-L65】【F:android-app/src/main/java/com/prevengos/plug/android/data/remote/api/PrevengosSyncApi.java†L1-L26】
 
-### Verificación rápida
+### Verificación rápida _(sujeta a cambios)_
 
 1. Comprueba que el archivo `gradle.properties` contiene una línea `prevengosApiBaseUrl=https://hub.prevengos.corp:8443/api/`.
 2. Ejecuta `./gradlew assembleRelease` (o `assembleDebug`) para generar el APK.
 3. Localiza el paquete generado en `android-app/build/outputs/apk/` y distribúyelo mediante el canal interno establecido (MDM, instalación manual, etc.).
 
-## 4. Entender la sincronización con el hub PRL
+## 4. Entender la sincronización con el hub PRL _(diseño preliminar)_
 
 * **Sincronización en segundo plano**: al abrir la app por primera vez, se programa un trabajo periódico (`prevengos-sync`) que envía y recupera cambios cada 6 horas mediante `WorkManager`. No requiere intervención manual.【F:android-app/src/main/java/com/prevengos/plug/android/PrevengosApplication.java†L4-L44】
 * **Sincronización bajo demanda**: cada alta o actualización de pacientes/cuestionarios ejecuta una sincronización inmediata para no esperar al ciclo de fondo.【F:android-app/src/main/java/com/prevengos/plug/android/ui/MainViewModel.java†L1-L162】
@@ -48,7 +50,7 @@ El script valida la URL, añade la barra final si falta y registra el valor en `
 
 > ✅ **Consejo operativo**: si el equipo necesita forzar una sincronización (por ejemplo, tras restaurar un backup del hub), basta con crear un paciente de prueba y eliminarlo. Esto provocará el disparo inmediato de `WorkManager` y permitirá verificar la conectividad sin tocar ajustes avanzados.
 
-## 5. Checklist final antes de entregar el dispositivo
+## 5. Checklist final antes de entregar el dispositivo _(activará tras el primer release)_
 
 - [ ] APK instalado en el dispositivo correcto.
 - [ ] Inicio de sesión o primer arranque realizado, confirmando que los listados aparecen vacíos pero operativos.

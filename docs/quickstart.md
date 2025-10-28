@@ -65,12 +65,11 @@ curl http://localhost:8080/actuator/health
    ./gradlew :modules:hub-backend:test
    ```
    La suite ejecuta pruebas de integración con SQL Server real (Testcontainers) que cubren push, pull y generación de CSV.
-2. **Aplicación Android (repositorio y parsing remoto):**
-   ```bash
-   ./gradlew :android-app:test
-   ```
-   Los tests mockean Retrofit para validar el marcado de lotes, los pulls incrementales y el borrado de cuestionarios en conflicto.
-3. **Pruebas end-to-end del hub:**
+2. **Aplicación Android:**
+   > ⏳ Las pruebas de la app Android están en fase de diseño. Sigue el roadmap del proyecto para conocer el ticket de implementación y su estado actual.
+3. **Aplicación de escritorio:**
+   > ⏳ Las pruebas automatizadas de la app de escritorio se incorporarán cuando exista un prototipo funcional.
+4. **Pruebas end-to-end del hub:**
    ```bash
    cd tests/e2e
    npm install
@@ -91,6 +90,6 @@ curl http://localhost:8080/actuator/health
 
 ## 7. Preparar entregables de cliente
 
-* Para la app Android, sigue la guía de construcción y distribución en [`docs/operations/android-build-and-distribution.md`](docs/operations/android-build-and-distribution.md).
-* Para la app de escritorio JavaFX, consulta el empaquetado descrito en [`docs/operations/desktop-app-distribution.md`](docs/operations/desktop-app-distribution.md) y el README del módulo [`desktop-app/README.md`](desktop-app/README.md).
+* Para la app Android, consulta el estado del diseño en [`docs/operations/android-build-and-distribution.md`](docs/operations/android-build-and-distribution.md); la guía se completará cuando existan builds oficiales.
+* Para la app de escritorio JavaFX, revisa el alcance preliminar en [`docs/operations/desktop-app-distribution.md`](docs/operations/desktop-app-distribution.md) y el README del módulo [`desktop-app/README.md`](desktop-app/README.md); ambos documentos se completarán con instrucciones definitivas cuando el cliente esté implementado.
 * Completa los jobs descritos en [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) para enviar/recibir CSV sin intervención manual y revisa los runbooks de soporte en `docs/operations` junto con los procedimientos de calidad en `docs/quality`.

@@ -61,6 +61,24 @@ La [Guía de implementación](docs/guia-de-implementacion.md) recopila los módu
 - **Automatización de intercambio:** [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) describe los jobs recomendados para entregar y recibir CSV sin intervención manual.
 - **Checklists de calidad:** [`docs/quality/manual-sync-checklist.md`](docs/quality/manual-sync-checklist.md) guía las validaciones end-to-end en SQL Server.
 
+## Roadmap de clientes
+
+> Este roadmap se sincroniza con el backlog de tickets del repositorio y se actualizará a medida que los clientes móviles y de escritorio avancen en su implementación.
+
+### Aplicación Android
+
+- [ ] Crear el módulo base de UI y navegación (pantalla de login, listados y formularios) alineado con los contratos de `modules/shared`.
+- [ ] Implementar `SyncRepository` con almacenamiento local en Room y llamadas reales al hub (`/sincronizacion/push` y `/sincronizacion/pull`).
+- [ ] Añadir capa de autenticación y manejo de errores de red con reintentos y registros operativos.
+- [ ] Configurar pipelines de build y pruebas (`assemble`, `bundle`, tests unitarios e instrumentados) listos para distribución interna.
+
+### Aplicación de escritorio
+
+- [ ] Definir la estructura de proyecto JavaFX y la persistencia local (SQLite) reutilizando los contratos compartidos.
+- [ ] Implementar servicios de sincronización con el hub y reconciliación de tokens.
+- [ ] Construir la interfaz principal (listados, detalles y edición) y los flujos de importación/exportación offline.
+- [ ] Preparar tareas Gradle para empaquetado (`fatJar`, instaladores) y la suite de pruebas automatizadas.
+
 ## Recursos operativos
 
 - Plantilla de variables compartidas en [`.env.sample`](./.env.sample) para alinear la configuración del hub con otros repositorios (incluido `prl-notifier`).
