@@ -4,38 +4,39 @@ import com.squareup.moshi.Json;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class SyncPullResponse {
-    private final List<PacientePayload> pacientes;
-    private final List<CuestionarioPayload> cuestionarios;
-    @Json(name = "sync_token")
-    private final String syncToken;
-    @Json(name = "last_synced_at")
-    private final Long lastSyncedAt;
+    @Json(name = "server_timestamp")
+    private final String serverTimestamp;
+    @Json(name = "next_since")
+    private final String nextSince;
+    private final Map<String, List<SyncChangeEnvelope>> changes;
+    private final List<String> warnings;
 
-    public SyncPullResponse(List<PacientePayload> pacientes,
-                            List<CuestionarioPayload> cuestionarios,
-                            String syncToken,
-                            Long lastSyncedAt) {
-        this.pacientes = pacientes == null ? Collections.emptyList() : pacientes;
-        this.cuestionarios = cuestionarios == null ? Collections.emptyList() : cuestionarios;
-        this.syncToken = syncToken;
-        this.lastSyncedAt = lastSyncedAt;
+    public SyncPullResponse(String serverTimestamp,
+                            String nextSince,
+                            Map<String, List<SyncChangeEnvelope>> changes,
+                            List<String> warnings) {
+        this.serverTimestamp = serverTimestamp;
+        this.nextSince = nextSince;
+        this.changes = changes == null ? Collections.emptyMap() : changes;
+        this.warnings = warnings == null ? Collections.emptyList() : warnings;
     }
 
-    public List<PacientePayload> getPacientes() {
-        return pacientes;
+    public String getServerTimestamp() {
+        return serverTimestamp;
     }
 
-    public List<CuestionarioPayload> getCuestionarios() {
-        return cuestionarios;
+    public String getNextSince() {
+        return nextSince;
     }
 
-    public String getSyncToken() {
-        return syncToken;
+    public Map<String, List<SyncChangeEnvelope>> getChanges() {
+        return changes;
     }
 
-    public Long getLastSyncedAt() {
-        return lastSyncedAt;
+    public List<String> getWarnings() {
+        return warnings;
     }
 }
