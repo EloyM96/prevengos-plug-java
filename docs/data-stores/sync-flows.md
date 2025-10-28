@@ -41,5 +41,5 @@ Este documento describe la arquitectura de sincronización entre el Hub PRL y lo
 
 ## Integración con pruebas
 
-* Pruebas automatizadas en `SynchronizationFlowTest` cubren la secuencia offline → online → pull.
+* Las pruebas automatizadas actuales se centran en `SynchronizationFlowTest`, que valida la generación de archivos CSV del job de RRHH utilizando mocks. No existen asserts sobre peticiones `push`/`pull` ni sobre el ciclo de tokens, por lo que el flujo offline → online → pull debe validarse manualmente o con pruebas de integración adicionales.
 * El checklist manual (`docs/quality/manual-sync-checklist.md`) complementa las validaciones funcionales y de observabilidad.
