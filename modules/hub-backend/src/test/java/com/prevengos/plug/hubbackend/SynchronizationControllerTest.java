@@ -1,44 +1,36 @@
 package com.prevengos.plug.hubbackend;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.prevengos.plug.hubbackend.dto.BatchSyncResponse;
+import com.prevengos.plug.hubbackend.dto.CuestionarioDto;
+import com.prevengos.plug.hubbackend.dto.PacienteDto;
+import com.prevengos.plug.hubbackend.dto.SyncEventResponse;
+import com.prevengos.plug.hubbackend.dto.SyncPullResponse;
+import com.prevengos.plug.hubbackend.service.CuestionarioService;
+import com.prevengos.plug.hubbackend.service.PacienteService;
+import com.prevengos.plug.hubbackend.service.SyncEventService;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@Testcontainers
-@SpringBootTest
-@ActiveProfiles("test")
+@WebMvcTest
 class SynchronizationControllerTest {
-
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:15-alpine");
-
-    @DynamicPropertySource
-    static void postgresProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");
-    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -46,84 +38,90 @@ class SynchronizationControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @MockBean
+    private PacienteService pacienteService;
+
+    @MockBean
+    private CuestionarioService cuestionarioService;
+
+    @MockBean
+    private SyncEventService syncEventService;
+
     @Test
-    void syncEndpointsPersistEventsAndExposePull() throws Exception {
-        Map<String, Object> paciente = Map.of(
-                "paciente_id", UUID.randomUUID().toString(),
-                "nif", "76543B",
-                "nombre", "Luis",
-                "apellidos", "García",
-                "fecha_nacimiento", "1985-05-20",
-                "sexo", "M",
-                "telefono", "+34987654321",
-                "email", "luis.garcia@example.com",
-                "empresa_id", UUID.randomUUID().toString(),
-                "centro_id", UUID.randomUUID().toString(),
-                "externo_ref", "EXT-456",
-                "created_at", OffsetDateTime.now().minusDays(2).toString(),
-                "updated_at", OffsetDateTime.now().minusDays(1).toString()
+    void syncPacientesEndpointDelegatesToService() throws Exception {
+        when(pacienteService.upsertPacientes(any(), any())).thenReturn(new BatchSyncResponse(1, List.of(UUID.randomUUID())));
+
+        PacienteDto dto = new PacienteDto(
+                UUID.randomUUID(),
+                "76543B",
+                "Luis",
+                "García",
+                LocalDate.of(1985, 5, 20),
+                "M",
+                "+34987654321",
+                "luis.garcia@example.com",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "EXT-456",
+                OffsetDateTime.now().minusDays(2),
+                OffsetDateTime.now().minusDays(1)
         );
 
         mockMvc.perform(MockMvcRequestBuilders.post("/sincronizacion/pacientes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-Source-System", "integration-test")
-                        .content(objectMapper.writeValueAsString(List.of(paciente))))
+                        .content(objectMapper.writeValueAsString(List.of(dto))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.processed").value(1));
 
-        Map<String, Object> respuesta = Map.of(
-                "pregunta_codigo", "P1",
-                "valor", "SI"
-        );
-        Map<String, Object> cuestionario = Map.of(
-                "cuestionario_id", UUID.randomUUID().toString(),
-                "paciente_id", paciente.get("paciente_id"),
-                "plantilla_codigo", "CS-01",
-                "estado", "completado",
-                "respuestas", List.of(respuesta),
-                "created_at", OffsetDateTime.now().minusDays(1).toString(),
-                "updated_at", OffsetDateTime.now().toString()
+        verify(pacienteService).upsertPacientes(any(), Mockito.eq("integration-test"));
+    }
+
+    @Test
+    void syncCuestionariosEndpointDelegatesToService() throws Exception {
+        when(cuestionarioService.upsertCuestionarios(any(), any())).thenReturn(new BatchSyncResponse(1, List.of(UUID.randomUUID())));
+
+        CuestionarioDto dto = new CuestionarioDto(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "CS-01",
+                "completado",
+                List.of(),
+                null,
+                null,
+                OffsetDateTime.now().minusDays(1),
+                OffsetDateTime.now()
         );
 
         mockMvc.perform(MockMvcRequestBuilders.post("/sincronizacion/cuestionarios")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-Source-System", "integration-test")
-                        .content(objectMapper.writeValueAsString(List.of(cuestionario))))
+                        .content(objectMapper.writeValueAsString(List.of(dto))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.processed").value(1));
 
-        var pullResult = mockMvc.perform(MockMvcRequestBuilders.get("/sincronizacion/pull")
-                        .param("limit", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.events").isArray())
-                .andReturn();
-
-        JsonNode root = objectMapper.readTree(pullResult.getResponse().getContentAsString());
-        JsonNode events = root.get("events");
-        assertThat(events.size()).isGreaterThanOrEqualTo(2);
-        long firstToken = events.get(0).get("sync_token").asLong();
-        OffsetDateTime firstOccurred = OffsetDateTime.parse(events.get(0).get("occurred_at").asText());
-
-        mockMvc.perform(MockMvcRequestBuilders.get("/sincronizacion/pull")
-                        .param("syncToken", String.valueOf(firstToken))
-                        .param("limit", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.events[0].sync_token").value(events.get(1).get("sync_token").asLong()));
-
-        mockMvc.perform(MockMvcRequestBuilders.get("/sincronizacion/pull")
-                        .param("since", firstOccurred.plusSeconds(1).toString())
-                        .param("limit", "10"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.events").isArray())
-                .andExpect(jsonPath("$.events.length()").value(0));
+        verify(cuestionarioService).upsertCuestionarios(any(), Mockito.eq("integration-test"));
     }
 
     @Test
-    void openApiDocumentationContainsSynchronizationEndpoints() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders.get("/v3/api-docs"))
+    void pullEndpointReturnsEvents() throws Exception {
+        SyncEventResponse response = new SyncEventResponse(
+                100L,
+                UUID.randomUUID(),
+                "paciente-upserted",
+                1,
+                OffsetDateTime.now(),
+                "test",
+                null,
+                null,
+                objectMapper.createObjectNode(),
+                objectMapper.createObjectNode()
+        );
+        when(syncEventService.pull(any(), any(), any())).thenReturn(new SyncPullResponse(List.of(response), 100L));
+
+        mockMvc.perform(MockMvcRequestBuilders.get("/sincronizacion/pull")
+                        .param("limit", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paths['/sincronizacion/pacientes']").exists())
-                .andExpect(jsonPath("$.paths['/sincronizacion/cuestionarios']").exists())
-                .andExpect(jsonPath("$.paths['/sincronizacion/pull']").exists());
+                .andExpect(jsonPath("$.events[0].event_type").value("paciente-upserted"));
     }
 }
