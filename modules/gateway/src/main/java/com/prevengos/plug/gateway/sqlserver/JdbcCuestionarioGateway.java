@@ -1,5 +1,8 @@
 package com.prevengos.plug.gateway.sqlserver;
 
+import com.prevengos.plug.shared.persistence.jdbc.CuestionarioCsvRow;
+import com.prevengos.plug.shared.persistence.jdbc.CuestionarioJdbcMapper;
+import com.prevengos.plug.shared.persistence.jdbc.CuestionarioRecord;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -116,32 +119,14 @@ public class JdbcCuestionarioGateway implements CuestionarioGateway {
     private static class CuestionarioRecordRowMapper implements RowMapper<CuestionarioRecord> {
         @Override
         public CuestionarioRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new CuestionarioRecord(
-                    rs.getObject("cuestionario_id", UUID.class),
-                    rs.getObject("paciente_id", UUID.class),
-                    rs.getString("plantilla_codigo"),
-                    rs.getString("estado"),
-                    rs.getString("respuestas"),
-                    rs.getString("firmas"),
-                    rs.getString("adjuntos"),
-                    rs.getObject("created_at", OffsetDateTime.class),
-                    rs.getObject("updated_at", OffsetDateTime.class),
-                    rs.getObject("last_modified", OffsetDateTime.class),
-                    rs.getLong("sync_token")
-            );
+            return CuestionarioJdbcMapper.mapRecord(rs);
         }
     }
 
     private static class CuestionarioCsvRowMapper implements RowMapper<CuestionarioCsvRow> {
         @Override
         public CuestionarioCsvRow mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new CuestionarioCsvRow(
-                    rs.getObject("cuestionario_id", UUID.class),
-                    rs.getObject("paciente_id", UUID.class),
-                    rs.getString("plantilla_codigo"),
-                    rs.getString("estado"),
-                    rs.getObject("updated_at", OffsetDateTime.class)
-            );
+            return CuestionarioJdbcMapper.mapCsvRow(rs);
         }
     }
 }

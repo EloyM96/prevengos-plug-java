@@ -1,19 +1,19 @@
 package com.prevengos.plug.hubbackend.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prevengos.plug.gateway.sqlserver.CuestionarioCsvRow;
+import com.prevengos.plug.gateway.csv.CsvFileWriter;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
-import com.prevengos.plug.gateway.sqlserver.CuestionarioRecord;
 import com.prevengos.plug.gateway.sqlserver.JdbcCuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.JdbcPacienteGateway;
 import com.prevengos.plug.gateway.sqlserver.JdbcSyncEventGateway;
-import com.prevengos.plug.gateway.sqlserver.PacienteCsvRow;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
-import com.prevengos.plug.gateway.sqlserver.PacienteRecord;
 import com.prevengos.plug.gateway.sqlserver.SyncEventGateway;
-import com.prevengos.plug.gateway.sqlserver.SyncEventRecord;
 import com.prevengos.plug.hubbackend.config.RrhhExportProperties;
-import com.prevengos.plug.hubbackend.io.CsvFileWriter;
+import com.prevengos.plug.shared.persistence.jdbc.CuestionarioCsvRow;
+import com.prevengos.plug.shared.persistence.jdbc.CuestionarioRecord;
+import com.prevengos.plug.shared.persistence.jdbc.PacienteCsvRow;
+import com.prevengos.plug.shared.persistence.jdbc.PacienteRecord;
+import com.prevengos.plug.shared.persistence.jdbc.SyncEventRecord;
 import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;

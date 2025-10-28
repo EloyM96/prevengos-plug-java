@@ -1,5 +1,7 @@
 package com.prevengos.plug.gateway.sqlserver;
 
+import com.prevengos.plug.shared.persistence.jdbc.SyncEventRecord;
+
 import java.time.OffsetDateTime;
 import java.util.List;
 

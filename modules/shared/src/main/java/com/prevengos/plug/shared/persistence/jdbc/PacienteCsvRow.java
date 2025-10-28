@@ -1,4 +1,4 @@
-package com.prevengos.plug.gateway.sqlserver;
+package com.prevengos.plug.shared.persistence.jdbc;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;

@@ -1,4 +1,4 @@
-package com.prevengos.plug.hubbackend.dto;
+package com.prevengos.plug.shared.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -10,6 +10,10 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/**
+ * Data transfer object representing the payload used by synchronization endpoints
+ * when exchanging pacientes information between clients and the hub.
+ */
 public record PacienteDto(
         @NotNull UUID pacienteId,
         @NotBlank @Size(min = 5, max = 16) @Pattern(regexp = "^[0-9A-Za-z]{5,16}$") String nif,

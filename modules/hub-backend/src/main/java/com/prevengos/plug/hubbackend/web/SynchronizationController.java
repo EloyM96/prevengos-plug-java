@@ -1,8 +1,8 @@
 package com.prevengos.plug.hubbackend.web;
 
 import com.prevengos.plug.hubbackend.dto.BatchSyncResponse;
-import com.prevengos.plug.hubbackend.dto.CuestionarioDto;
-import com.prevengos.plug.hubbackend.dto.PacienteDto;
+import com.prevengos.plug.shared.dto.CuestionarioDto;
+import com.prevengos.plug.shared.dto.PacienteDto;
 import com.prevengos.plug.hubbackend.dto.SyncPullResponse;
 import com.prevengos.plug.hubbackend.service.CuestionarioService;
 import com.prevengos.plug.hubbackend.service.PacienteService;

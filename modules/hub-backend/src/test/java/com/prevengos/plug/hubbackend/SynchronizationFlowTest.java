@@ -1,11 +1,11 @@
 package com.prevengos.plug.hubbackend;
 
-import com.prevengos.plug.gateway.sqlserver.CuestionarioCsvRow;
+import com.prevengos.plug.gateway.csv.CsvFileWriter;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
-import com.prevengos.plug.gateway.sqlserver.PacienteCsvRow;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
 import com.prevengos.plug.hubbackend.config.RrhhExportProperties;
-import com.prevengos.plug.hubbackend.io.CsvFileWriter;
+import com.prevengos.plug.shared.persistence.jdbc.CuestionarioCsvRow;
+import com.prevengos.plug.shared.persistence.jdbc.PacienteCsvRow;
 import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

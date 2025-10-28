@@ -1,5 +1,8 @@
 package com.prevengos.plug.gateway.sqlserver;
 
+import com.prevengos.plug.shared.persistence.jdbc.PacienteCsvRow;
+import com.prevengos.plug.shared.persistence.jdbc.PacienteJdbcMapper;
+import com.prevengos.plug.shared.persistence.jdbc.PacienteRecord;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -124,42 +127,14 @@ public class JdbcPacienteGateway implements PacienteGateway {
     private static class PacienteRecordRowMapper implements RowMapper<PacienteRecord> {
         @Override
         public PacienteRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new PacienteRecord(
-                    rs.getObject("paciente_id", UUID.class),
-                    rs.getString("nif"),
-                    rs.getString("nombre"),
-                    rs.getString("apellidos"),
-                    rs.getObject("fecha_nacimiento", java.time.LocalDate.class),
-                    rs.getString("sexo"),
-                    rs.getString("telefono"),
-                    rs.getString("email"),
-                    rs.getObject("empresa_id", UUID.class),
-                    rs.getObject("centro_id", UUID.class),
-                    rs.getString("externo_ref"),
-                    rs.getObject("created_at", OffsetDateTime.class),
-                    rs.getObject("updated_at", OffsetDateTime.class),
-                    rs.getObject("last_modified", OffsetDateTime.class),
-                    rs.getLong("sync_token")
-            );
+            return PacienteJdbcMapper.mapRecord(rs);
         }
     }
 
     private static class PacienteCsvRowMapper implements RowMapper<PacienteCsvRow> {
         @Override
         public PacienteCsvRow mapRow(ResultSet rs, int rowNum) throws SQLException {
-            return new PacienteCsvRow(
-                    rs.getObject("paciente_id", UUID.class),
-                    rs.getString("nif"),
-                    rs.getString("nombre"),
-                    rs.getString("apellidos"),
-                    rs.getString("sexo"),
-                    rs.getObject("updated_at", OffsetDateTime.class),
-                    rs.getString("telefono"),
-                    rs.getString("email"),
-                    rs.getObject("empresa_id", UUID.class),
-                    rs.getObject("centro_id", UUID.class),
-                    rs.getString("externo_ref")
-            );
+            return PacienteJdbcMapper.mapCsvRow(rs);
         }
     }
 }

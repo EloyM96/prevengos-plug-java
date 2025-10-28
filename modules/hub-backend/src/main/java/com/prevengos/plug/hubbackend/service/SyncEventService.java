@@ -3,7 +3,7 @@ package com.prevengos.plug.hubbackend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prevengos.plug.gateway.sqlserver.SyncEventGateway;
-import com.prevengos.plug.gateway.sqlserver.SyncEventRecord;
+import com.prevengos.plug.shared.persistence.jdbc.SyncEventRecord;
 import com.prevengos.plug.hubbackend.dto.SyncEventResponse;
 import com.prevengos.plug.hubbackend.dto.SyncPullResponse;
 import io.micrometer.core.instrument.MeterRegistry;

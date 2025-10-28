@@ -1,4 +1,4 @@
-package com.prevengos.plug.hubbackend.io;
+package com.prevengos.plug.gateway.csv;
 
 import com.prevengos.plug.shared.csv.CsvRecord;
 import org.slf4j.Logger;

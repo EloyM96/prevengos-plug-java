@@ -1,11 +1,11 @@
 package com.prevengos.plug.hubbackend.job;
 
+import com.prevengos.plug.gateway.csv.CsvFileReader;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
-import com.prevengos.plug.gateway.sqlserver.CuestionarioRecord;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
-import com.prevengos.plug.gateway.sqlserver.PacienteRecord;
 import com.prevengos.plug.hubbackend.config.RrhhImportProperties;
-import com.prevengos.plug.hubbackend.io.CsvFileReader;
+import com.prevengos.plug.shared.persistence.jdbc.CuestionarioRecord;
+import com.prevengos.plug.shared.persistence.jdbc.PacienteRecord;
 import com.prevengos.plug.shared.contracts.v1.Cuestionario;
 import com.prevengos.plug.shared.contracts.v1.Paciente;
 import com.prevengos.plug.shared.csv.CsvRecord;
