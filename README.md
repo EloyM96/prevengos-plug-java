@@ -53,15 +53,14 @@ El diagrama refleja que las apps Java se apoyan en módulos compartidos para per
 
 La [Guía de implementación](docs/guia-de-implementacion.md) recopila los módulos principales, flujos de datos y controles de seguridad que deben seguir los equipos de Android, escritorio y backend al trabajar con Prevengos Plug. Consulta ese documento antes de acometer nuevos desarrollos o despliegues para mantener la coherencia con la arquitectura acordada.
 
+## Documentación clave
+
+- **Puesta en marcha unificada:** [`docs/quickstart.md`](docs/quickstart.md) cubre requisitos, despliegue local con SQL Server, pruebas y validaciones.
+- **Formatos CSV oficiales:** [`docs/integrations/csv-formatos.md`](docs/integrations/csv-formatos.md) y las plantillas en [`contracts/csv/rrhh`](contracts/csv/rrhh/README.md) definen columnas, ejemplos y reglas de checksum.
+- **Automatización de intercambio:** [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) describe los jobs recomendados para entregar y recibir CSV sin intervención manual.
+- **Checklists de calidad:** [`docs/quality/manual-sync-checklist.md`](docs/quality/manual-sync-checklist.md) guía las validaciones end-to-end en SQL Server.
+
 ## Recursos operativos
 
-- Plantilla de variables compartidas en [`.env.sample`](./.env.sample) para alinear la configuración del hub con otros
-  repositorios (incluido `prl-notifier`).
-- Mock HTTP de la API del Hub en [`infra/mocks/prl-hub`](infra/mocks/prl-hub) respaldado por Prism y sincronizado con el
-  OpenAPI versionado.
-
-## Próximos pasos sugeridos
-1. Documentar el procedimiento operativo para exportar e importar CSV con Prevengos desde este programa local.
-2. Completar los adaptadores JDBC hacia SQL Server en `modules/gateway` y `modules/hub-backend` para cubrir todos los casos de uso requeridos por la app y el escritorio.
-3. Sincronizar dependencias y contratos con el repositorio `prl-notifier`, asegurando que no se solapan funcionalidades y que ambos proyectos comparten la misma fuente de verdad.
-4. Revisar periódicamente la guía de [preparación para integraciones con `prl-notifier`](docs/integrations/prl-notifier-readiness.md) para garantizar que la documentación y los artefactos técnicos permanecen alineados ante nuevas funcionalidades.
+- Plantilla de variables compartidas en [`.env.sample`](./.env.sample) para alinear la configuración del hub con otros repositorios (incluido `prl-notifier`).
+- Mock HTTP de la API del Hub en [`infra/mocks/prl-hub`](infra/mocks/prl-hub) respaldado por Prism y sincronizado con el OpenAPI versionado.
