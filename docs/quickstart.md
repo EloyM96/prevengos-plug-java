@@ -5,7 +5,8 @@ Guía unificada para levantar el entorno local, generar datos de prueba y valida
 ## 1. Preparación del entorno
 
 1. Instala los prerrequisitos:
-   * JDK 21
+   * JDK 17 (Temurin/Azul/GraalVM son compatibles)
+     * Si necesitas alternar con JDK 21 para otras herramientas, configura `JAVA_HOME` o Gradle Toolchains para que el proyecto siempre utilice 17.
    * Docker Engine 24+ y Docker Compose V2
    * Node.js 20+ (para las pruebas end-to-end)
    * [HTTPie](https://httpie.io/) 3.x (o, si lo prefieres, `curl`) para ejecutar las llamadas REST de sincronización
