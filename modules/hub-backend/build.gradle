@@ -22,6 +22,7 @@ dependencies {
     implementation 'org.postgresql:postgresql'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+    implementation project(':modules:shared')
 
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
@@ -29,6 +30,11 @@ dependencies {
     testImplementation 'com.h2database:h2'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:mssqlserver'
+    testImplementation 'com.microsoft.sqlserver:mssql-jdbc:12.6.1.jre11'
+    testImplementation 'org.xerial:sqlite-jdbc:3.45.1.0'
+    testImplementation 'org.flywaydb:flyway-database-sqlite:9.22.3'
+    testImplementation 'org.flywaydb:flyway-database-sqlserver:9.22.3'
 }
 
 tasks.test {

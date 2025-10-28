@@ -47,12 +47,15 @@ public class PacienteService {
             Paciente entity = pacienteRepository.findById(dto.pacienteId())
                     .orElseGet(() -> new Paciente(dto.pacienteId()));
             boolean isNew = entity.getCreatedAt() == null;
+            OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            OffsetDateTime resolvedCreatedAt = dto.createdAt() != null ? dto.createdAt() : now;
+            OffsetDateTime resolvedUpdatedAt = dto.updatedAt() != null ? dto.updatedAt() : now;
             mapDtoToEntity(dto, entity);
             if (isNew) {
-                entity.setCreatedAt(dto.createdAt() != null ? dto.createdAt() : OffsetDateTime.now(ZoneOffset.UTC));
+                entity.setCreatedAt(resolvedCreatedAt);
             }
-            entity.setUpdatedAt(dto.updatedAt() != null ? dto.updatedAt() : entity.getUpdatedAt());
-            entity.setLastModified(dto.updatedAt() != null ? dto.updatedAt() : OffsetDateTime.now(ZoneOffset.UTC));
+            entity.setUpdatedAt(resolvedUpdatedAt);
+            entity.setLastModified(resolvedUpdatedAt);
             pacienteRepository.save(entity);
 
             var event = syncEventService.registerEvent("paciente-upserted", dto, source, null, null, null);

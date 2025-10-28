@@ -45,4 +45,8 @@ CREATE TABLE sync_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_sync_events_occurred_at ON sync_events (occurred_at);
+CREATE INDEX idx_pacientes_last_modified ON pacientes (last_modified DESC);
+CREATE INDEX idx_cuestionarios_last_modified ON cuestionarios (last_modified DESC);
+CREATE UNIQUE INDEX idx_sync_events_event_id ON sync_events (event_id);
+CREATE INDEX idx_sync_events_occurred_at ON sync_events (occurred_at DESC);
+CREATE INDEX idx_sync_events_created_at ON sync_events (created_at DESC);
