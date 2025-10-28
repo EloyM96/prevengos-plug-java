@@ -53,6 +53,13 @@ El diagrama refleja que las apps Java se apoyan en módulos compartidos para per
 
 La [Guía de implementación](docs/guia-de-implementacion.md) recopila los módulos principales, flujos de datos y controles de seguridad que deben seguir los equipos de Android, escritorio y backend al trabajar con Prevengos Plug. Consulta ese documento antes de acometer nuevos desarrollos o despliegues para mantener la coherencia con la arquitectura acordada.
 
+## Recursos operativos
+
+- Plantilla de variables compartidas en [`.env.sample`](./.env.sample) para alinear la configuración del hub con otros
+  repositorios (incluido `prl-notifier`).
+- Mock HTTP de la API del Hub en [`infra/mocks/prl-hub`](infra/mocks/prl-hub) respaldado por Prism y sincronizado con el
+  OpenAPI versionado.
+
 ## Próximos pasos sugeridos
 1. Documentar el procedimiento operativo para exportar e importar CSV con Prevengos desde este programa local.
 2. Completar los adaptadores JDBC hacia SQL Server en `modules/gateway` y `modules/hub-backend` para cubrir todos los casos de uso requeridos por la app y el escritorio.
