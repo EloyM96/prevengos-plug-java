@@ -15,9 +15,28 @@ hub:
   jobs:
     rrhh-export:
       base-dir: ${RRHH_EXPORT_BASE:/var/prevengos/oficial/outgoing}
+      archive-dir: ${RRHH_EXPORT_ARCHIVE:/var/prevengos/oficial/archive}
       process-name: rrhh
+      origin: hub
+      operator: hub-system
       cron: 0 0 3 * * *
       lookback-hours: 24
+      delivery:
+        enabled: true
+        protocol: ${RRHH_EXPORT_PROTOCOL:sftp}
+        remote-dir: ${RRHH_EXPORT_REMOTE:/prevengos/oficial/rrhh}
+        sftp:
+          host: ${RRHH_EXPORT_SFTP_HOST:localhost}
+          port: ${RRHH_EXPORT_SFTP_PORT:22}
+          username: ${RRHH_EXPORT_SFTP_USER:prevengos}
+          password: ${RRHH_EXPORT_SFTP_PASSWORD:changeit}
+          strict-host-key-checking: ${RRHH_EXPORT_SFTP_STRICT:false}
+        smb:
+          host: ${RRHH_EXPORT_SMB_HOST:localhost}
+          share: ${RRHH_EXPORT_SMB_SHARE:rrhh}
+          username: ${RRHH_EXPORT_SMB_USER:prevengos}
+          password: ${RRHH_EXPORT_SMB_PASSWORD:changeit}
+          domain: ${RRHH_EXPORT_SMB_DOMAIN:}
     rrhh-import:
       inbox-dir: ${RRHH_IMPORT_INBOX:/var/prevengos/oficial/incoming}
       archive-dir: ${RRHH_IMPORT_ARCHIVE:/var/prevengos/oficial/archive}

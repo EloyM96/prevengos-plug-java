@@ -1,12 +1,14 @@
 package com.prevengos.plug.hubbackend;
 
 import com.prevengos.plug.gateway.csv.CsvFileWriter;
+import com.prevengos.plug.gateway.filetransfer.FileTransferClient;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
+import com.prevengos.plug.gateway.sqlserver.RrhhAuditGateway;
 import com.prevengos.plug.hubbackend.config.RrhhExportProperties;
+import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import com.prevengos.plug.shared.persistence.jdbc.CuestionarioCsvRow;
 import com.prevengos.plug.shared.persistence.jdbc.PacienteCsvRow;
-import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
@@ -30,19 +32,22 @@ class SynchronizationFlowTest {
         PacienteGateway pacienteGateway = Mockito.mock(PacienteGateway.class);
         CuestionarioGateway cuestionarioGateway = Mockito.mock(CuestionarioGateway.class);
 
+        OffsetDateTime now = OffsetDateTime.now();
         when(pacienteGateway.fetchForRrhhExport(Mockito.any(OffsetDateTime.class)))
                 .thenReturn(List.of(new PacienteCsvRow(
                         UUID.randomUUID(),
                         "12345A",
                         "Ana",
                         "Prevengos",
+                        now.toLocalDate(),
                         "F",
-                        OffsetDateTime.now(),
                         "+34123456789",
                         "ana.prevengos@example.com",
                         UUID.randomUUID(),
                         UUID.randomUUID(),
-                        "EXT-1")));
+                        "EXT-1",
+                        now.minusDays(1),
+                        now)));
 
         when(cuestionarioGateway.fetchForRrhhExport(Mockito.any(OffsetDateTime.class)))
                 .thenReturn(List.of(new CuestionarioCsvRow(
@@ -50,32 +55,41 @@ class SynchronizationFlowTest {
                         UUID.randomUUID(),
                         "CS-01",
                         "completado",
-                        OffsetDateTime.now())));
+                        "{\"ok\":true}",
+                        null,
+                        null,
+                        now.minusDays(1),
+                        now)));
 
         RrhhExportProperties properties = new RrhhExportProperties();
         properties.setBaseDir(tempDir);
         properties.setLookbackHours(24);
+        properties.setArchiveDir(tempDir.resolve("archive"));
+        properties.getDelivery().setEnabled(false);
+
         CsvFileWriter csvFileWriter = new CsvFileWriter();
-        RrhhCsvExportJob job = new RrhhCsvExportJob(pacienteGateway, cuestionarioGateway, csvFileWriter, properties);
+        FileTransferClient transferClient = Mockito.mock(FileTransferClient.class);
+        RrhhAuditGateway auditGateway = Mockito.mock(RrhhAuditGateway.class);
+        RrhhCsvExportJob job = new RrhhCsvExportJob(
+                pacienteGateway,
+                cuestionarioGateway,
+                csvFileWriter,
+                transferClient,
+                auditGateway,
+                properties);
 
-        job.runExport("test");
+        RrhhCsvExportJob.RrhhExportResult result = job.runExport("test");
 
-        Path dayDir;
-        try (var stream = Files.list(tempDir)) {
-            dayDir = stream.findFirst().orElseThrow();
-        }
-        Path processDir;
-        try (var stream = Files.list(dayDir)) {
-            processDir = stream.findFirst().orElseThrow();
-        }
-        Path pacientesCsv = processDir.resolve("pacientes.csv");
-        Path cuestionariosCsv = processDir.resolve("cuestionarios.csv");
+        Path pacientesCsv = result.stagingDir().resolve("pacientes.csv");
+        Path cuestionariosCsv = result.stagingDir().resolve("cuestionarios.csv");
 
         assertThat(Files.exists(pacientesCsv)).isTrue();
         assertThat(Files.exists(pacientesCsv.resolveSibling("pacientes.csv.sha256"))).isTrue();
         assertThat(Files.exists(cuestionariosCsv)).isTrue();
         assertThat(Files.readString(pacientesCsv)).contains("paciente_id");
         assertThat(Files.readString(cuestionariosCsv)).contains("cuestionario_id");
+        assertThat(Files.exists(result.archiveDir().resolve("pacientes.csv"))).isTrue();
+        assertThat(Files.exists(result.archiveDir().resolve("cuestionarios.csv"))).isTrue();
     }
 
 }

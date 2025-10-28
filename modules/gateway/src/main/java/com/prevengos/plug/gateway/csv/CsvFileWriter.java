@@ -36,7 +36,7 @@ public class CsvFileWriter {
         }
     }
 
-    public void writeChecksum(Path file) {
+    public String writeChecksum(Path file) {
         Path checksumFile = file.resolveSibling(file.getFileName().toString() + ".sha256");
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -45,6 +45,7 @@ public class CsvFileWriter {
             String value = HexFormat.of().withUpperCase().formatHex(hash);
             Files.writeString(checksumFile, value, StandardCharsets.UTF_8);
             logger.info("Checksum generado en {}", checksumFile);
+            return value;
         } catch (NoSuchAlgorithmException | IOException e) {
             throw new IllegalStateException("Error generating checksum for " + file, e);
         }

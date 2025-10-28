@@ -2,11 +2,13 @@ package com.prevengos.plug.hubbackend.persistence;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prevengos.plug.gateway.csv.CsvFileWriter;
+import com.prevengos.plug.gateway.filetransfer.FileTransferClient;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.JdbcCuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.JdbcPacienteGateway;
 import com.prevengos.plug.gateway.sqlserver.JdbcSyncEventGateway;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
+import com.prevengos.plug.gateway.sqlserver.RrhhAuditGateway;
 import com.prevengos.plug.gateway.sqlserver.SyncEventGateway;
 import com.prevengos.plug.hubbackend.config.RrhhExportProperties;
 import com.prevengos.plug.shared.persistence.jdbc.CuestionarioCsvRow;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -116,8 +119,6 @@ class SqlServerGatewayIntegrationTest {
         List<PacienteRecord> updated = gateway.findUpdatedSince(base.minusHours(1), 10);
         assertThat(updated).extracting(PacienteRecord::pacienteId).containsExactly(pacienteId);
 
-        insertPrevengosPaciente(pacienteId, "12345678A", "Ana", "Prevengos",
-                base.plusHours(2), "+34911122334", "ana.prevengos@example.com", "EXT-1");
         List<PacienteCsvRow> csvRows = gateway.fetchForRrhhExport(base.minusDays(1));
         assertThat(csvRows).hasSize(1);
         assertThat(csvRows.get(0).nif()).isEqualTo("12345678A");
@@ -161,7 +162,6 @@ class SqlServerGatewayIntegrationTest {
         List<CuestionarioRecord> updated = gateway.findUpdatedSince(now.minusHours(2), 10);
         assertThat(updated).extracting(CuestionarioRecord::cuestionarioId).containsExactly(cuestionarioId);
 
-        insertPrevengosCuestionario(cuestionarioId, pacienteId, "CS-02", "validado", now.plusHours(3));
         List<CuestionarioCsvRow> csvRows = gateway.fetchForRrhhExport(now.minusDays(1));
         assertThat(csvRows).hasSize(1);
         assertThat(csvRows.get(0).estado()).isEqualTo("validado");
@@ -217,33 +217,33 @@ class SqlServerGatewayIntegrationTest {
                         .addValue("created", now.minusDays(1))
                         .addValue("updated", now.minusHours(1)));
 
-        insertPrevengosPaciente(pacienteId, "11111111H", "Helena", "García",
-                now.minusHours(2), "+34999888776", "helena@example.com", "EXT-2");
-        insertPrevengosCuestionario(cuestionarioId, pacienteId, "CS-02", "validado", now.minusHours(2));
-
         RrhhExportProperties properties = new RrhhExportProperties();
-        properties.setBaseDir(tempDir);
+        properties.setBaseDir(tempDir.resolve("outgoing"));
+        properties.setArchiveDir(tempDir.resolve("archive"));
         properties.setProcessName("test-process");
         properties.setLookbackHours(48);
+        properties.getDelivery().setEnabled(false);
 
-        RrhhCsvExportJob job = new RrhhCsvExportJob(pacienteGateway, cuestionarioGateway, new CsvFileWriter(), properties);
-        job.runExport("integration-test");
+        FileTransferClient transferClient = Mockito.mock(FileTransferClient.class);
+        RrhhAuditGateway auditGateway = Mockito.mock(RrhhAuditGateway.class);
 
-        Path dayDir;
-        try (var stream = Files.list(tempDir)) {
-            dayDir = stream.findFirst().orElseThrow();
-        }
-        Path processDir;
-        try (var stream = Files.list(dayDir)) {
-            processDir = stream.findFirst().orElseThrow();
-        }
-        Path pacientesCsv = processDir.resolve("pacientes.csv");
-        Path cuestionariosCsv = processDir.resolve("cuestionarios.csv");
+        RrhhCsvExportJob job = new RrhhCsvExportJob(
+                pacienteGateway,
+                cuestionarioGateway,
+                new CsvFileWriter(),
+                transferClient,
+                auditGateway,
+                properties);
+        RrhhCsvExportJob.RrhhExportResult result = job.runExport("integration-test");
+
+        Path pacientesCsv = result.stagingDir().resolve("pacientes.csv");
+        Path cuestionariosCsv = result.stagingDir().resolve("cuestionarios.csv");
 
         assertThat(Files.readString(pacientesCsv)).contains("11111111H");
         assertThat(Files.readString(cuestionariosCsv)).contains("CS-02");
         assertThat(Files.exists(pacientesCsv.resolveSibling("pacientes.csv.sha256"))).isTrue();
         assertThat(Files.exists(cuestionariosCsv.resolveSibling("cuestionarios.csv.sha256"))).isTrue();
+        assertThat(Files.exists(result.archiveDir().resolve("pacientes.csv"))).isTrue();
     }
 
     private static DriverManagerDataSource createDataSource(String databaseName) {
@@ -334,6 +334,7 @@ class SqlServerGatewayIntegrationTest {
         String url = SQL_SERVER.getJdbcUrl() + ";databaseName=prl_hub";
         try (Connection connection = DriverManager.getConnection(url, SQL_SERVER.getUsername(), SQL_SERVER.getPassword())) {
             runSqlServerScript(connection, migrationsDir.resolve("V2__create_prl_hub_tables.sql"));
+            runSqlServerScript(connection, migrationsDir.resolve("V3__rrhh_audit_tables.sql"));
             runSqlServerScript(connection, migrationsDir.resolve("V1__create_views.sql"));
         }
     }
@@ -352,34 +353,4 @@ class SqlServerGatewayIntegrationTest {
         }
     }
 
-    private static void insertPrevengosPaciente(UUID pacienteId, String nif, String nombre, String apellidos,
-                                                OffsetDateTime updatedAt, String telefono, String email, String externoRef) {
-        prevengosJdbcTemplate.update("INSERT INTO dbo.Pacientes (PacienteGuid, NIF, Nombre, Apellidos, FechaNacimiento, Sexo, " +
-                        "Telefono, Email, EmpresaGuid, CentroGuid, PrevengosId, UltimaActualizacion, Activo) " +
-                        "VALUES (:id, :nif, :nombre, :apellidos, :fecha, 'F', :telefono, :email, :empresa, :centro, :externo, :updated, 1)",
-                new MapSqlParameterSource()
-                        .addValue("id", pacienteId)
-                        .addValue("nif", nif)
-                        .addValue("nombre", nombre)
-                        .addValue("apellidos", apellidos)
-                        .addValue("fecha", LocalDate.of(1990, 1, 1))
-                        .addValue("telefono", telefono)
-                        .addValue("email", email)
-                        .addValue("empresa", UUID.randomUUID())
-                        .addValue("centro", UUID.randomUUID())
-                        .addValue("externo", externoRef)
-                        .addValue("updated", updatedAt));
-    }
-
-    private static void insertPrevengosCuestionario(UUID cuestionarioId, UUID pacienteId, String plantillaCodigo,
-                                                    String estado, OffsetDateTime updatedAt) {
-        prevengosJdbcTemplate.update("INSERT INTO dbo.Cuestionarios (CuestionarioGuid, PacienteGuid, PlantillaCodigo, Estado, UltimaActualizacion, EsPRL) " +
-                        "VALUES (:id, :paciente, :plantilla, :estado, :updated, 1)",
-                new MapSqlParameterSource()
-                        .addValue("id", cuestionarioId)
-                        .addValue("paciente", pacienteId)
-                        .addValue("plantilla", plantillaCodigo)
-                        .addValue("estado", estado)
-                        .addValue("updated", updatedAt));
-    }
 }

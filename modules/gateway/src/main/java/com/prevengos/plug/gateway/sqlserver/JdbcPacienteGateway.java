@@ -62,9 +62,9 @@ public class JdbcPacienteGateway implements PacienteGateway {
             """;
 
     private static final String SELECT_RRHH_VIEW_SQL = """
-            SELECT paciente_id, nif, nombre, apellidos, sexo, updated_at, telefono, email,
-                   empresa_id, centro_id, externo_ref
-            FROM dbo.vw_prl_pacientes
+            SELECT paciente_id, nif, nombre, apellidos, fecha_nacimiento, sexo, telefono, email,
+                   empresa_id, centro_id, externo_ref, created_at, updated_at
+            FROM dbo.pacientes
             WHERE (:since IS NULL OR updated_at >= :since)
             ORDER BY updated_at ASC;
             """;
