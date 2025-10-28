@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.prevengos.plug.desktop.ui.MainController">
+    <top>
+        <MenuBar>
+            <menus>
+                <Menu text="Archivo">
+                    <items>
+                        <MenuItem text="Importar JSON" onAction="#onImportJson" />
+                        <MenuItem text="Exportar JSON" onAction="#onExportJson" />
+                        <SeparatorMenuItem />
+                        <MenuItem text="Salir" onAction="#onExit" />
+                    </items>
+                </Menu>
+                <Menu text="Sincronización">
+                    <items>
+                        <MenuItem text="Enviar cambios" onAction="#onPush" />
+                        <MenuItem text="Recibir cambios" onAction="#onPull" />
+                    </items>
+                </Menu>
+            </menus>
+        </MenuBar>
+    </top>
+    <center>
+        <SplitPane dividerPositions="0.45">
+            <items>
+                <VBox spacing="10" BorderPane.alignment="CENTER">
+                    <padding>
+                        <Insets top="10" right="10" bottom="10" left="10" />
+                    </padding>
+                    <Label text="Pacientes" styleClass="section-title" />
+                    <TableView fx:id="pacienteTable" prefHeight="200">
+                        <columns>
+                            <TableColumn fx:id="nifColumn" text="NIF" prefWidth="120" />
+                            <TableColumn fx:id="nombreColumn" text="Nombre" prefWidth="160" />
+                            <TableColumn fx:id="telefonoColumn" text="Teléfono" prefWidth="120" />
+                        </columns>
+                    </TableView>
+                    <HBox spacing="10">
+                        <Button text="Nuevo" onAction="#onNuevoPaciente" />
+                        <Button text="Editar" onAction="#onEditarPaciente" />
+                        <Button text="Eliminar" onAction="#onEliminarPaciente" />
+                    </HBox>
+                </VBox>
+                <VBox spacing="10" BorderPane.alignment="CENTER">
+                    <padding>
+                        <Insets top="10" right="10" bottom="10" left="10" />
+                    </padding>
+                    <Label text="Detalle de paciente" styleClass="section-title" />
+                    <GridPane hgap="10" vgap="5">
+                        <columnConstraints>
+                            <ColumnConstraints halignment="RIGHT" minWidth="100" />
+                            <ColumnConstraints hgrow="ALWAYS" />
+                        </columnConstraints>
+                        <children>
+                            <Label text="Nombre completo:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                            <Label fx:id="nombreCompletoLabel" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+
+                            <Label text="Correo:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                            <Label fx:id="emailLabel" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+
+                            <Label text="Última modificación:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                            <Label fx:id="lastModifiedLabel" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+                        </children>
+                    </GridPane>
+                    <Separator />
+                    <Label text="Cuestionarios" styleClass="section-title" />
+                    <TableView fx:id="cuestionarioTable" prefHeight="200">
+                        <columns>
+                            <TableColumn fx:id="cuestionarioCodigoColumn" text="Plantilla" prefWidth="150" />
+                            <TableColumn fx:id="cuestionarioEstadoColumn" text="Estado" prefWidth="120" />
+                            <TableColumn fx:id="cuestionarioActualizadoColumn" text="Actualizado" prefWidth="160" />
+                        </columns>
+                    </TableView>
+                    <HBox spacing="10">
+                        <Button text="Nuevo" onAction="#onNuevoCuestionario" />
+                        <Button text="Editar" onAction="#onEditarCuestionario" />
+                        <Button text="Eliminar" onAction="#onEliminarCuestionario" />
+                    </HBox>
+                </VBox>
+            </items>
+        </SplitPane>
+    </center>
+    <bottom>
+        <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 8;">
+            <Label text="Estado:" />
+            <Label fx:id="statusLabel" text="Listo" />
+            <Pane HBox.hgrow="ALWAYS" />
+            <Label fx:id="metadataLabel" />
+        </HBox>
+    </bottom>
+</BorderPane>
