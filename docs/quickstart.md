@@ -30,34 +30,48 @@ El comando levanta SQL Server (`prevengos-local-sqlserver`) y el backend Spring 
 curl http://localhost:8080/actuator/health
 ```
 
-## 3. Ejecutar una sincronización manual
+## 3. Verificar salud y observabilidad del hub
+
+1. Comprueba el estado general del backend y que expose los endpoints de observabilidad:
+   ```bash
+   curl http://localhost:8080/actuator/health
+   curl "http://localhost:8080/actuator/metrics/hub.sync.events.registered?tag=event_type:paciente-upserted"
+   ```
+   La segunda llamada devuelve el contador Micrometer utilizado por los tests automatizados para validar la ingesta de eventos.
+
+## 4. Ejecutar una sincronización manual
 
 1. Genera payloads `pacientes.json` y `cuestionarios.json` utilizando las plantillas de `contracts/json` o exportando desde la app Android.
 2. Sigue el procedimiento detallado en [`docs/quality/manual-sync-checklist.md`](docs/quality/manual-sync-checklist.md) para enviar los datos, verificar SQL Server mediante `sqlcmd` y realizar pulls subsecuentes.
 
-## 4. Validar el intercambio CSV
+## 5. Ejecutar pruebas automatizadas
 
-1. Los formatos oficiales y ejemplos están documentados en [`contracts/csv/rrhh`](contracts/csv/rrhh/README.md) y en la guía funcional [`docs/integrations/csv-formatos.md`](docs/integrations/csv-formatos.md).
-2. Para un recorrido completo sobre automatizaciones y carpetas de drop, revisa [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md).
-
-## 5. Ejecutar pruebas end-to-end
-
-1. Instala las dependencias de Playwright:
+1. **Backend hub:**
+   ```bash
+   ./gradlew :modules:hub-backend:test
+   ```
+   La suite incluye coberturas de observabilidad y conflictos sobre los endpoints `sincronizacion/*`.
+2. **Aplicación Android (repositorio y parsing remoto):**
+   ```bash
+   ./gradlew :android-app:test
+   ```
+   Los tests mockean Retrofit para validar el marcado de lotes, los pulls incrementales y el borrado de cuestionarios en conflicto.
+3. **Pruebas end-to-end del hub:**
    ```bash
    cd tests/e2e
    npm install
    npx playwright install --with-deps
-   ```
-2. Lanza la suite que cubre el recorrido web y las validaciones de CSV:
-   ```bash
    npm test
    ```
-3. Abre el reporte interactivo si necesitas revisar evidencias:
-   ```bash
-   npm run test:report
-   ```
+   Por defecto se levanta un mock server local que replica `/sincronizacion` y `/actuator`; si tienes un hub operativo, establece `E2E_BASE_URL=http://localhost:8080` antes de lanzar `npm test`.
 
-## 6. Siguientes pasos operativos
+## 6. Validar el intercambio CSV
 
-* Configura los jobs descritos en [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) para enviar/recibir CSV sin intervención manual.
-* Revisa los runbooks de soporte en `docs/operations` y los procedimientos de calidad en `docs/quality` para garantizar cobertura antes de habilitar el acceso a equipos no técnicos.
+1. Los formatos oficiales y ejemplos están documentados en [`contracts/csv/rrhh`](contracts/csv/rrhh/README.md) y en la guía funcional [`docs/integrations/csv-formatos.md`](docs/integrations/csv-formatos.md).
+2. Para un recorrido completo sobre automatizaciones y carpetas de drop, revisa [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md).
+
+## 7. Preparar entregables de cliente
+
+* Para la app Android, sigue la guía de construcción y distribución en [`docs/operations/android-build-and-distribution.md`](docs/operations/android-build-and-distribution.md).
+* Para la app de escritorio JavaFX, consulta el empaquetado descrito en [`docs/operations/desktop-app-distribution.md`](docs/operations/desktop-app-distribution.md) y el README del módulo [`desktop-app/README.md`](desktop-app/README.md).
+* Completa los jobs descritos en [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) para enviar/recibir CSV sin intervención manual y revisa los runbooks de soporte en `docs/operations` junto con los procedimientos de calidad en `docs/quality`.

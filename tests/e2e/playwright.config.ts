@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = process.env.E2E_BASE_URL ?? 'https://example.com';
+const defaultBaseURL = 'http://127.0.0.1:3100';
+const baseURL = process.env.E2E_BASE_URL ?? defaultBaseURL;
+const useMockServer = !process.env.E2E_BASE_URL;
 
 export default defineConfig({
   testDir: './tests',
@@ -23,6 +25,16 @@ export default defineConfig({
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
-    }
+    },
   ],
+  ...(useMockServer
+    ? {
+        webServer: {
+          command: 'node fixtures/mock-hub-server.js',
+          url: `${defaultBaseURL}/actuator/health`,
+          reuseExistingServer: !process.env.CI,
+          timeout: 30 * 1000,
+        },
+      }
+    : {}),
 });
