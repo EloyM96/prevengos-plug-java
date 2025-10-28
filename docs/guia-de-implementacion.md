@@ -47,8 +47,8 @@ Esta guía resume la arquitectura integral del sistema para que los equipos de A
 
 ## Documentación complementaria
 
-- **Quickstart operativo:** [`docs/quickstart.md`](docs/quickstart.md) describe cómo levantar el entorno, ejecutar sincronizaciones manuales y disparar las pruebas.
-- **Formatos CSV:** [`docs/integrations/csv-formatos.md`](docs/integrations/csv-formatos.md) resume columnas, ejemplos y validaciones compartidas.
-- **Automatización y runbooks:** [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) detalla los jobs recomendados y cómo conectarlos con la monitorización existente.
+- **Quickstart operativo:** [`docs/quickstart.md`](quickstart.md) describe cómo levantar el entorno, ejecutar sincronizaciones manuales y disparar las pruebas.
+- **Formatos CSV:** [`docs/integrations/csv-formatos.md`](integrations/csv-formatos.md) resume columnas, ejemplos y validaciones compartidas.
+- **Automatización y runbooks:** [`docs/operations/csv-automation.md`](operations/csv-automation.md) detalla los jobs recomendados y cómo conectarlos con la monitorización existente.
 - **Pruebas end-to-end:** la suite Playwright (`tests/e2e`) cubre el recorrido de intercambio CSV completo.
 
