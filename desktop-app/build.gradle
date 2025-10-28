@@ -27,4 +27,32 @@ dependencies {
     implementation 'org.openjfx:javafx-fxml:21.0.2'
     implementation 'org.xerial:sqlite-jdbc:3.45.2.0'
     implementation 'com.microsoft.sqlserver:mssql-jdbc:12.6.1.jre11'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.16.1'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.1'
+    testImplementation 'org.testfx:testfx-junit5:4.0.16-alpha'
+    testImplementation 'org.testfx:openjfx-monocle:21.0.2'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    systemProperty 'testfx.headless', 'true'
+    jvmArgs += ['-Dglass.platform=Monocle', '-Dmonocle.platform=Headless', '-Dprism.order=sw', '-Djava.awt.headless=true']
+}
+
+tasks.register('fatJar', Jar) {
+    group = 'distribution'
+    description = 'Genera un JAR ejecutable con todas las dependencias'
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': application.mainClass.get()
+    }
+    from sourceSets.main.output
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.get().collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
