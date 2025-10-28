@@ -18,7 +18,7 @@ Este procedimiento cubre la secuencia end-to-end para validar la sincronización
    export SQLSERVER_PORT=1433
    export SQLSERVER_USER=prevengos_app
    export SQLSERVER_PASSWORD=Prevengos.App.123
-   export SQLSERVER_DB=prevengos_hub
+   export SQLSERVER_DB=prl_hub
    ```
 
 ## Captura offline y sincronización

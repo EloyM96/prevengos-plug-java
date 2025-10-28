@@ -10,7 +10,7 @@ Este procedimiento guía a equipos no técnicos en la configuración inicial de 
 | Conectividad | Acceso a la red corporativa donde resida el hub PRL (Wi-Fi o datos). |
 | Servidor hub | Endpoint HTTPS expuesto por el hub PRL (`https://servidor.local:8443/api`, por ejemplo). |
 | Puesto de trabajo | Equipo Windows/macOS/Linux con **Java 17** y permisos para ejecutar scripts. |
-| Herramientas | Gradle Wrapper incluido en el repositorio (`./gradlew`), Android SDK automáticamente descargable al compilar. |
+| Herramientas | Gradle Wrapper incluido en el repositorio (`./gradlew`); el archivo `gradle-wrapper.jar` debe generarse localmente ejecutando `gradle wrapper` con Gradle 8.14.3. El Android SDK se descarga automáticamente al compilar. |
 
 > 💡 **Consejo**: si no dispones de Java 17 instalado, solicita al área de sistemas que valide la instalación antes de continuar.
 
@@ -18,8 +18,9 @@ Este procedimiento guía a equipos no técnicos en la configuración inicial de 
 
 1. Clona o descarga el repositorio `prevengos-plug-java` en el puesto de trabajo operativo.
 2. Abre una consola en la carpeta raíz del proyecto.
-3. Ejecuta el script de soporte para registrar la URL del hub (ver apartado siguiente). El script creará o actualizará el archivo `gradle.properties` sin necesidad de editar código manualmente.【F:docs/scripts/android/setup_android_app.sh†L1-L102】
-4. (Opcional) Si es la primera vez que se compila, deja que Gradle descargue las dependencias; puede tardar varios minutos.
+3. Si es la primera vez que se usa el repositorio en esa máquina, ejecuta `gradle wrapper --gradle-version 8.14.3` para recrear `gradle/wrapper/gradle-wrapper.jar`. (Se requiere tener Gradle instalado de forma local únicamente para este paso.)
+4. Ejecuta el script de soporte para registrar la URL del hub (ver apartado siguiente). El script creará o actualizará el archivo `gradle.properties` sin necesidad de editar código manualmente.【F:docs/scripts/android/setup_android_app.sh†L1-L102】
+5. (Opcional) Si es la primera vez que se compila, deja que Gradle descargue las dependencias; puede tardar varios minutos.
 
 ## 3. Configurar el endpoint del hub
 
