@@ -1,12 +1,15 @@
 package com.prevengos.plug.hubbackend.job;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prevengos.plug.gateway.csv.CsvFileReader;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
+import com.prevengos.plug.gateway.sqlserver.SyncEventGateway;
 import com.prevengos.plug.hubbackend.config.RrhhImportProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -18,7 +21,12 @@ import java.util.HexFormat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -31,7 +39,11 @@ class RrhhCsvImportJobTest {
     @Mock
     private CuestionarioGateway cuestionarioGateway;
 
+    @Mock
+    private SyncEventGateway syncEventGateway;
+
     private final CsvFileReader csvFileReader = new CsvFileReader();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void processesValidDropAndMovesToArchive(@TempDir Path tempDir) throws Exception {
@@ -62,11 +74,26 @@ class RrhhCsvImportJobTest {
         properties.setArchiveDir(archive);
         properties.setErrorDir(error);
 
-        RrhhCsvImportJob job = new RrhhCsvImportJob(pacienteGateway, cuestionarioGateway, csvFileReader, properties);
+        when(syncEventGateway.registerEvent(any(), anyString(), anyInt(), any(), anyString(), any(), isNull(), anyString(), anyString()))
+                .thenReturn(101L, 202L);
+
+        RrhhCsvImportJob job = new RrhhCsvImportJob(
+                pacienteGateway,
+                cuestionarioGateway,
+                csvFileReader,
+                properties,
+                syncEventGateway,
+                objectMapper);
         RrhhCsvImportJob.RrhhImportReport report = job.processInbox("test");
 
-        verify(pacienteGateway).upsert(any(), any(), anyLong());
-        verify(cuestionarioGateway).upsert(any(), any(), anyLong());
+        ArgumentCaptor<Long> pacienteTokenCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<Long> cuestionarioTokenCaptor = ArgumentCaptor.forClass(Long.class);
+
+        verify(pacienteGateway).upsert(any(), any(), pacienteTokenCaptor.capture());
+        verify(cuestionarioGateway).upsert(any(), any(), cuestionarioTokenCaptor.capture());
+        verify(syncEventGateway, times(2)).registerEvent(any(), anyString(), anyInt(), any(), anyString(), any(), isNull(), anyString(), anyString());
+        assertThat(pacienteTokenCaptor.getValue()).isEqualTo(101L);
+        assertThat(cuestionarioTokenCaptor.getValue()).isEqualTo(202L);
         assertThat(report.pacientesImported()).isEqualTo(1);
         assertThat(report.cuestionariosImported()).isEqualTo(1);
         assertThat(archive.resolve("20240202/rrhh/prevengos")).exists();
@@ -97,7 +124,13 @@ class RrhhCsvImportJobTest {
         properties.setArchiveDir(archive);
         properties.setErrorDir(error);
 
-        RrhhCsvImportJob job = new RrhhCsvImportJob(pacienteGateway, cuestionarioGateway, csvFileReader, properties);
+        RrhhCsvImportJob job = new RrhhCsvImportJob(
+                pacienteGateway,
+                cuestionarioGateway,
+                csvFileReader,
+                properties,
+                syncEventGateway,
+                objectMapper);
         RrhhCsvImportJob.RrhhImportReport report = job.processInbox("test");
 
         verifyNoInteractions(pacienteGateway, cuestionarioGateway);

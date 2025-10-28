@@ -1,8 +1,11 @@
 package com.prevengos.plug.hubbackend.job;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.prevengos.plug.gateway.csv.CsvFileReader;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
+import com.prevengos.plug.gateway.sqlserver.SyncEventGateway;
 import com.prevengos.plug.hubbackend.config.RrhhImportProperties;
 import com.prevengos.plug.shared.contracts.v1.Cuestionario;
 import com.prevengos.plug.shared.contracts.v1.Paciente;
@@ -25,6 +28,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -36,15 +40,21 @@ public class RrhhCsvImportJob {
     private final CuestionarioGateway cuestionarioGateway;
     private final CsvFileReader csvFileReader;
     private final RrhhImportProperties properties;
+    private final SyncEventGateway syncEventGateway;
+    private final ObjectMapper objectMapper;
 
     public RrhhCsvImportJob(PacienteGateway pacienteGateway,
                             CuestionarioGateway cuestionarioGateway,
                             CsvFileReader csvFileReader,
-                            RrhhImportProperties properties) {
+                            RrhhImportProperties properties,
+                            SyncEventGateway syncEventGateway,
+                            ObjectMapper objectMapper) {
         this.pacienteGateway = pacienteGateway;
         this.cuestionarioGateway = cuestionarioGateway;
         this.csvFileReader = csvFileReader;
         this.properties = properties;
+        this.syncEventGateway = syncEventGateway;
+        this.objectMapper = objectMapper;
     }
 
     @Scheduled(cron = "${hub.jobs.rrhh-import.cron:0 30 3 * * *}")
@@ -74,7 +84,8 @@ public class RrhhCsvImportJob {
             }
             Path relative = properties.getInboxDir().relativize(dropDir);
             try {
-                ImportCounters counters = importDrop(dropDir);
+                DropContext context = new DropContext(trigger, relative.toString(), UUID.randomUUID());
+                ImportCounters counters = importDrop(dropDir, context);
                 pacientesImported += counters.pacientes();
                 cuestionariosImported += counters.cuestionarios();
                 moveDirectory(dropDir, properties.getArchiveDir().resolve(relative));
@@ -111,23 +122,23 @@ public class RrhhCsvImportJob {
         return Files.exists(pacientes) || Files.exists(cuestionarios);
     }
 
-    private ImportCounters importDrop(Path dropDir) throws IOException, NoSuchAlgorithmException {
+    private ImportCounters importDrop(Path dropDir, DropContext context) throws IOException, NoSuchAlgorithmException {
         int pacientesCount = 0;
         int cuestionariosCount = 0;
         Path pacientesFile = dropDir.resolve("pacientes.csv");
         if (Files.exists(pacientesFile)) {
             verifyChecksum(pacientesFile);
-            pacientesCount = importPacientes(pacientesFile);
+            pacientesCount = importPacientes(pacientesFile, context);
         }
         Path cuestionariosFile = dropDir.resolve("cuestionarios.csv");
         if (Files.exists(cuestionariosFile)) {
             verifyChecksum(cuestionariosFile);
-            cuestionariosCount = importCuestionarios(cuestionariosFile);
+            cuestionariosCount = importCuestionarios(cuestionariosFile, context);
         }
         return new ImportCounters(pacientesCount, cuestionariosCount);
     }
 
-    private int importPacientes(Path file) {
+    private int importPacientes(Path file, DropContext context) {
         List<CsvRecord> records = csvFileReader.readCsv(file);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         for (CsvRecord record : records) {
@@ -152,12 +163,13 @@ public class RrhhCsvImportJob {
                     updatedAt,
                     null
             );
-            pacienteGateway.upsert(dto, updatedAt, 0L);
+            long token = registerSyncEvent("paciente-upserted", dto, context);
+            pacienteGateway.upsert(dto, updatedAt, token);
         }
         return records.size();
     }
 
-    private int importCuestionarios(Path file) {
+    private int importCuestionarios(Path file, DropContext context) {
         List<CsvRecord> records = csvFileReader.readCsv(file);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         for (CsvRecord record : records) {
@@ -178,9 +190,35 @@ public class RrhhCsvImportJob {
                     updatedAt,
                     null
             );
-            cuestionarioGateway.upsert(dto, updatedAt, 0L);
+            long token = registerSyncEvent("cuestionario-upserted", dto, context);
+            cuestionarioGateway.upsert(dto, updatedAt, token);
         }
         return records.size();
+    }
+
+    private long registerSyncEvent(String eventType, Object payload, DropContext context) {
+        try {
+            String serializedPayload = objectMapper.writeValueAsString(payload);
+            String metadata = objectMapper.writeValueAsString(new ImportMetadata(
+                    properties.getProcessName(),
+                    context.trigger(),
+                    context.relativeDrop()
+            ));
+            return syncEventGateway.registerEvent(
+                    UUID.randomUUID(),
+                    eventType,
+                    1,
+                    OffsetDateTime.now(ZoneOffset.UTC),
+                    properties.getProcessName() + "-csv-import",
+                    context.correlationId(),
+                    null,
+                    serializedPayload,
+                    metadata
+            );
+        } catch (JsonProcessingException e) {
+            logger.error("Error serializando evento de importación RRHH", e);
+            throw new IllegalStateException("No se pudo registrar el evento de sincronización", e);
+        }
     }
 
     private void verifyChecksum(Path file) throws IOException, NoSuchAlgorithmException {
@@ -211,6 +249,12 @@ public class RrhhCsvImportJob {
     }
 
     private record ImportCounters(int pacientes, int cuestionarios) {
+    }
+
+    private record DropContext(String trigger, String relativeDrop, UUID correlationId) {
+    }
+
+    private record ImportMetadata(String process, String trigger, String drop) {
     }
 
     public record RrhhImportReport(int processedDrops,

@@ -13,7 +13,10 @@ public class NoOpFileTransferClient implements FileTransferClient {
     private static final Logger log = LoggerFactory.getLogger(NoOpFileTransferClient.class);
 
     @Override
-    public void deliver(Path localFile, String remotePath) {
-        log.info("Entrega simulada de {} a {}", localFile, remotePath);
+    public void deliver(Path localFile, FileTransferRequest request) {
+        log.info("Entrega simulada de {} a {}:{}/{}", localFile,
+                request.protocol(),
+                request.remoteDirectory() == null ? "" : request.remoteDirectory(),
+                request.remoteFileName());
     }
 }

@@ -7,5 +7,5 @@ import java.nio.file.Path;
  */
 public interface FileTransferClient {
 
-    void deliver(Path localFile, String remotePath) throws Exception;
+    void deliver(Path localFile, FileTransferRequest request) throws Exception;
 }
