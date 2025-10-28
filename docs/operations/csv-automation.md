@@ -8,6 +8,7 @@ Describe tareas y scripts recomendados para mover CSV entre el hub local y Preve
 - Recoger CSV de retorno (`*_resultado.csv`) y almacenarlos en la carpeta de importación para procesarlos automáticamente.
 - Generar checksums y auditoría de cada operación.
 - Parametrizar rutas y credenciales reales antes de la puesta en producción, dejando documentación clara del despliegue.
+- Verificar que las importaciones generan eventos de sincronización consumibles por los clientes.
 
 ## Componentes
 
@@ -24,6 +25,8 @@ Describe tareas y scripts recomendados para mover CSV entre el hub local y Preve
    - Registra resultados en `import_audit` y emite métricas `hub_rrhh_import_success`.
 
 > ℹ️ **Variables obligatorias**: definir `HUB_EXPORT_DIR`, `HUB_IMPORT_DIR`, `PREVENGOS_DROP_URI`, `PREVENGOS_SFTP_USER` y `PREVENGOS_SFTP_KEY` (o `PREVENGOS_SMB_CREDENTIALS`) en los archivos de entorno o en los `Environment=` de los servicios `systemd`. Documentar en la wiki interna la procedencia y vigencia de cada secreto.
+
+> ⚙️ **Configurar también las propiedades del backend**: asegúrate de que `hub.jobs.rrhh-export.*` y `hub.jobs.rrhh-import.*` utilizan rutas y credenciales reales (`base-dir`, `archive-dir`, `inbox-dir`, `error-dir`, protocolos de entrega) tanto en los `application-*.yml` como en las variables `RRHH_EXPORT_*`/`RRHH_IMPORT_*`. Las rutas por defecto del repositorio son de ejemplo y no deben usarse en producción.【F:modules/hub-backend/src/main/resources/application.yml†L19-L47】
 
 ## Despliegue parametrizado
 
@@ -110,5 +113,6 @@ flowchart LR
 
 - Ejecutar `npm test` en `tests/e2e` para validar los CSV antes de programar los jobs.
 - Completar el checklist [`docs/quality/manual-sync-checklist.md`](../quality/manual-sync-checklist.md) después de cualquier cambio de infraestructura.
+- Cuando se habiliten importaciones reales, confirmar que `sync_events` registra tokens distintos de `0` para los pacientes y cuestionarios importados. Si los upserts se ejecutan con `syncToken=0`, ajustar `RrhhCsvImportJob` para generar eventos y documentar el cambio siguiendo la [lista de comprobación de piloto](prevengos-pilot-readiness.md).【F:modules/hub-backend/src/main/java/com/prevengos/plug/hubbackend/job/RrhhCsvImportJob.java†L131-L166】
 
 Con esta automatización documentada ya no quedan elementos pendientes para declarar el intercambio CSV como 100 % cubierto.
