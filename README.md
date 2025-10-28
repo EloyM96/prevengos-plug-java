@@ -49,6 +49,10 @@ flowchart LR
 
 El diagrama refleja que las apps Java se apoyan en módulos compartidos para persistir información en SQL Server y generar o consumir los CSV requeridos por Prevengos. Cualquier otro canal (mensajería, email, analítica o integraciones externas) debe implementarse en sistemas anexos y coordinarse mediante los mismos CSV o la base de datos local.
 
+## Guía de implementación
+
+La [Guía de implementación](docs/guia-de-implementacion.md) recopila los módulos principales, flujos de datos y controles de seguridad que deben seguir los equipos de Android, escritorio y backend al trabajar con Prevengos Plug. Consulta ese documento antes de acometer nuevos desarrollos o despliegues para mantener la coherencia con la arquitectura acordada.
+
 ## Próximos pasos sugeridos
 1. Documentar el procedimiento operativo para exportar e importar CSV con Prevengos desde este programa local.
 2. Completar los adaptadores JDBC hacia SQL Server en `modules/gateway` y `modules/hub-backend` para cubrir todos los casos de uso requeridos por la app y el escritorio.
