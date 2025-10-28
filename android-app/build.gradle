@@ -6,6 +6,8 @@ android {
     namespace 'com.prevengos.plug.android'
     compileSdk 34
 
+    def syncBaseUrl = project.findProperty('prevengosApiBaseUrl') ?: 'https://api.prevengos.test/'
+
     defaultConfig {
         applicationId 'com.prevengos.plug.android'
         minSdk 24
@@ -13,6 +15,7 @@ android {
         versionCode 1
         versionName '0.1.0'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        buildConfigField 'String', 'SYNC_BASE_URL', '"' + syncBaseUrl + '"'
     }
 
     buildTypes {
