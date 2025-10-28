@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'fs';
+import { createHash } from 'crypto';
 import * as path from 'path';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
@@ -56,6 +57,19 @@ function loadCsv(fileName: string) {
   return { header, records };
 }
 
+function computeFileSha256(fileName: string) {
+  const filePath = path.resolve(CSV_DIR, fileName);
+  const buffer = readFileSync(filePath);
+  return createHash('sha256').update(buffer).digest('hex');
+}
+
+function loadChecksum(fileName: string) {
+  const checksumPath = path.resolve(CSV_DIR, `${fileName}.sha256`);
+  const checksumContent = readFileSync(checksumPath, 'utf-8').trim();
+  const [hash] = checksumContent.split(/\s+/);
+  return hash;
+}
+
 const PACIENTE_MOCK = {
   pacienteId: '3f9f55bc-3b92-4bf2-8c3c-61116941a9bd',
   nif: '87654321B',
@@ -99,7 +113,8 @@ function expectJson(value: string) {
 
 test.describe('Intercambio CSV RRHH', () => {
   test('las plantillas oficiales cumplen las validaciones documentadas', () => {
-    const pacientesCsv = loadCsv('pacientes.example.csv');
+    const pacientesFile = 'pacientes.example.csv';
+    const pacientesCsv = loadCsv(pacientesFile);
     expect(pacientesCsv.header).toEqual([
       'paciente_id',
       'nif',
@@ -131,7 +146,12 @@ test.describe('Intercambio CSV RRHH', () => {
     expect(paciente.created_at).toMatch(ISO_INSTANT_REGEX);
     expect(paciente.updated_at).toMatch(ISO_INSTANT_REGEX);
 
-    const cuestionariosCsv = loadCsv('cuestionarios.example.csv');
+    const pacientesChecksum = loadChecksum(pacientesFile);
+    expect(pacientesChecksum).toHaveLength(64);
+    expect(pacientesChecksum).toEqual(computeFileSha256(pacientesFile));
+
+    const cuestionariosFile = 'cuestionarios.example.csv';
+    const cuestionariosCsv = loadCsv(cuestionariosFile);
     expect(cuestionariosCsv.header).toEqual([
       'cuestionario_id',
       'paciente_id',
@@ -153,6 +173,10 @@ test.describe('Intercambio CSV RRHH', () => {
     expectJson(cuestionario.adjuntos || '[]');
     expect(cuestionario.created_at).toMatch(ISO_INSTANT_REGEX);
     expect(cuestionario.updated_at).toMatch(ISO_INSTANT_REGEX);
+
+    const cuestionariosChecksum = loadChecksum(cuestionariosFile);
+    expect(cuestionariosChecksum).toHaveLength(64);
+    expect(cuestionariosChecksum).toEqual(computeFileSha256(cuestionariosFile));
   });
 
   test('la exportación e importación exponen metadatos coherentes', async ({ request }) => {
