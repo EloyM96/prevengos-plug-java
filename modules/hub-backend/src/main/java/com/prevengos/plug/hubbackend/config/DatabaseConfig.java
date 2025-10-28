@@ -2,7 +2,7 @@ package com.prevengos.plug.hubbackend.config;
 
 import com.prevengos.plug.gateway.csv.CsvFileWriter;
 import com.prevengos.plug.gateway.filetransfer.FileTransferClient;
-import com.prevengos.plug.gateway.filetransfer.NoOpFileTransferClient;
+import com.prevengos.plug.gateway.filetransfer.DefaultFileTransferClient;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +30,7 @@ public class DatabaseConfig {
 
     @Bean
     public FileTransferClient fileTransferClient() {
-        return new NoOpFileTransferClient();
+        return new DefaultFileTransferClient();
     }
 
     @Bean

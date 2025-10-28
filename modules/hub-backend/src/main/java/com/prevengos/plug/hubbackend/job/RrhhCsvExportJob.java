@@ -2,6 +2,7 @@ package com.prevengos.plug.hubbackend.job;
 
 import com.prevengos.plug.gateway.csv.CsvFileWriter;
 import com.prevengos.plug.gateway.filetransfer.FileTransferClient;
+import com.prevengos.plug.gateway.filetransfer.FileTransferRequest;
 import com.prevengos.plug.gateway.sqlserver.CuestionarioGateway;
 import com.prevengos.plug.gateway.sqlserver.PacienteGateway;
 import com.prevengos.plug.gateway.sqlserver.RrhhAuditGateway;
@@ -68,12 +69,17 @@ public class RrhhCsvExportJob {
         Files.copy(cuestionariosCsv.resolveSibling(cuestionariosCsv.getFileName() + ".sha256"),
                 archiveDir.resolve(cuestionariosCsv.getFileName() + ".sha256"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
-        String remoteDir = properties.getDelivery().getRemoteDir();
-        if (properties.getDelivery().isEnabled() && remoteDir != null) {
-            fileTransferClient.deliver(pacientesCsv, remoteDir + "/" + pacientesCsv.getFileName());
-            fileTransferClient.deliver(cuestionariosCsv, remoteDir + "/" + cuestionariosCsv.getFileName());
-            logFileDrop(traceId, pacientesCsv, remoteDir);
-            logFileDrop(traceId, cuestionariosCsv, remoteDir);
+        String remoteDir = null;
+        if (properties.getDelivery().isEnabled()) {
+            FileTransferRequest pacientesRequest = properties.getDelivery()
+                    .toRequest(pacientesCsv.getFileName().toString());
+            FileTransferRequest cuestionariosRequest = properties.getDelivery()
+                    .toRequest(cuestionariosCsv.getFileName().toString());
+            fileTransferClient.deliver(pacientesCsv, pacientesRequest);
+            fileTransferClient.deliver(cuestionariosCsv, cuestionariosRequest);
+            logFileDrop(traceId, pacientesCsv, pacientesRequest);
+            logFileDrop(traceId, cuestionariosCsv, cuestionariosRequest);
+            remoteDir = pacientesRequest.remoteDirectory();
         }
 
         UUID exportId = UUID.randomUUID();
@@ -96,13 +102,13 @@ public class RrhhCsvExportJob {
         return new RrhhExportResult(traceId, stagingDir, archiveDir, pacientes.size(), cuestionarios.size());
     }
 
-    private void logFileDrop(UUID traceId, Path file, String remoteDir) {
+    private void logFileDrop(UUID traceId, Path file, FileTransferRequest request) {
         auditGateway.recordFileDrop(new FileDropRecord(
                 UUID.randomUUID(),
                 traceId,
                 properties.getProcessName(),
-                properties.getDelivery().getProtocol(),
-                remoteDir,
+                request.protocol().name(),
+                request.remoteDirectory(),
                 file.getFileName().toString(),
                 null,
                 "DELIVERED",

@@ -16,7 +16,6 @@ import net.schmizz.sshj.sftp.SFTPClient;
 import net.schmizz.sshj.transport.verification.PromiscuousVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -27,13 +26,12 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 
-@Component
 public class DefaultFileTransferClient implements FileTransferClient {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultFileTransferClient.class);
 
     @Override
-    public void upload(Path localFile, FileTransferRequest request) {
+    public void deliver(Path localFile, FileTransferRequest request) {
         Objects.requireNonNull(localFile, "localFile must not be null");
         if (!Files.exists(localFile)) {
             throw new IllegalArgumentException("Local file does not exist: " + localFile);
