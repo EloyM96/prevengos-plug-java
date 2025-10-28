@@ -4,16 +4,16 @@ Este documento describe la arquitectura de sincronización entre el Hub PRL y lo
 
 ## Flujos principales
 
-1. **Captura offline**: dispositivos móviles u orígenes desconectados almacenan pacientes y cuestionarios en caché local junto con metadatos (`created_at`, `updated_at`).
-2. **Sincronización online**: al recuperar conectividad se envían lotes a `/sincronizacion/pacientes` y `/sincronizacion/cuestionarios` incluyendo el encabezado `X-Source-System`.
+1. **Captura offline**: dispositivos móviles u orígenes desconectados almacenan pacientes y cuestionarios en caché local junto con metadatos (`createdAt`, `updatedAt`).
+2. **Sincronización online**: al recuperar conectividad se envía un lote combinado a `/sincronizacion/push` incluyendo `source` y `correlationId` en el cuerpo.
 3. **Registro de eventos**: cada `upsert` persiste la entidad y registra un `SyncEvent` con `event_type` (`*-upserted`) y `source` resuelto automáticamente.
-4. **Pull incremental**: clientes consumen `/sincronizacion/pull` pasando `syncToken` y/o `since` para avanzar con tokens monotónicos.
+4. **Pull incremental**: clientes consumen `/sincronizacion/pull` pasando `syncToken` para avanzar con tokens monotónicos.
 
 ## Tokens de sincronización
 
 * `sync_token` es la clave auto incremental en `sync_events` y sirve como cursor global y ordenado.
 * El Hub retorna `nextToken` en cada pull; los clientes deben persistirlo y reenviarlo en la siguiente llamada.
-* En caso de pérdida del token, usar `since=<ISO8601>` para rehidratar eventos desde una fecha conocida.
+* En caso de pérdida del token, reiniciar el proceso desde `syncToken=0` y reconstruir el estado local con los lotes recibidos.
 
 ## Manejo de conflictos
 
@@ -25,7 +25,7 @@ Este documento describe la arquitectura de sincronización entre el Hub PRL y lo
 
 1. **Reintentos automáticos**: ante errores transitorios (5xx o timeouts) reintentar con backoff exponencial, manteniendo el payload original.
 2. **Reprocesar desde token**: identificar el último `syncToken` confirmado y repetir el pull con `limit` reducido para evitar sobresaturación.
-3. **Replay completo**: en incidentes mayores, ejecutar `pull` con `since` y paginar hasta alcanzar el token actual. Registrar métricas de duración (`hub_sync_pull_duration_seconds`).
+3. **Replay completo**: en incidentes mayores, iniciar pulls desde `syncToken=0` y paginar hasta alcanzar el token actual. Registrar métricas de duración (`hub_sync_pull_duration_seconds`).
 4. **Limpieza de estado local**: si una caché local queda corrupta, limpiar el storage y reconstruirlo reanudando pulls desde `0`.
 
 ## Observabilidad

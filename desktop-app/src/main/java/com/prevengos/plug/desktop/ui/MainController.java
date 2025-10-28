@@ -7,8 +7,8 @@ import com.prevengos.plug.desktop.model.Paciente;
 import com.prevengos.plug.desktop.model.SyncMetadata;
 import com.prevengos.plug.desktop.repository.RepositoryException;
 import com.prevengos.plug.desktop.sync.SyncService;
-import com.prevengos.plug.desktop.sync.dto.SyncBatchResponse;
-import com.prevengos.plug.desktop.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPushResponse;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -270,10 +270,10 @@ public class MainController {
     public void onPush(ActionEvent event) {
         runAsync("Sincronizando cambios locales", () -> {
             SyncService syncService = container.syncService();
-            SyncBatchResponse response = syncService.pushDirtyEntities();
+            SyncPushResponse response = syncService.pushDirtyEntities();
             Platform.runLater(() -> {
                 refreshPacientes();
-                setStatus("Cambios enviados. Pacientes: " + response.pacientesProcesados() + ", cuestionarios: " + response.cuestionariosProcesados());
+                setStatus("Cambios enviados. Pacientes: " + response.processedPacientes() + ", cuestionarios: " + response.processedCuestionarios());
                 updateMetadataLabel();
             });
         });
@@ -286,7 +286,7 @@ public class MainController {
             SyncPullResponse response = syncService.pullUpdates();
             Platform.runLater(() -> {
                 refreshPacientes();
-                setStatus("Pull completado. Próximo token: " + response.nextToken());
+                setStatus("Pull completado. Próximo token: " + response.nextSyncToken());
                 updateMetadataLabel();
             });
         });

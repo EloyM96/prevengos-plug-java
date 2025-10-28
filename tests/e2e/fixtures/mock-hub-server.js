@@ -50,7 +50,7 @@ function parseDate(value) {
   return Number.isNaN(timestamp) ? Date.now() : timestamp;
 }
 
-function registerEvent(eventType, payload, source, metadataExtras = {}) {
+function registerEvent(eventType, payload, source, correlationId, metadataExtras = {}) {
   const syncToken = state.nextSyncToken++;
   const occurredAt = new Date().toISOString();
   const event = {
@@ -60,14 +60,14 @@ function registerEvent(eventType, payload, source, metadataExtras = {}) {
     version: 1,
     occurredAt,
     source: source || 'hub-backend',
-    correlationId: null,
+    correlationId: correlationId || null,
     causationId: null,
-    payload,
-    metadata: {
+    payload: JSON.stringify(payload),
+    metadata: JSON.stringify({
       channel: 'prevengos.notifications',
       webhook_secret_set: false,
       ...metadataExtras,
-    },
+    }),
   };
   state.events.push(event);
   return event;
@@ -128,83 +128,151 @@ function handleRrhhImport(req, res) {
   });
 }
 
-function handlePacientes(req, res) {
+function normaliseTimestamp(value) {
+  if (!value) {
+    return new Date().toISOString();
+  }
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    return new Date().toISOString();
+  }
+  return new Date(parsed).toISOString();
+}
+
+function handlePush(req, res) {
   readBody(req)
     .then((body) => {
-      const pacientes = Array.isArray(body) ? body : [];
+      if (!body || typeof body !== 'object') {
+        jsonResponse(res, 400, { message: 'Payload inválido' });
+        return;
+      }
+
+      const pacientes = Array.isArray(body.pacientes) ? body.pacientes : [];
+      const cuestionarios = Array.isArray(body.cuestionarios) ? body.cuestionarios : [];
+      const source = body.source || req.headers['x-source-system'] || 'mock-client';
+      const correlationId = body.correlationId || null;
+
+      let processedPacientes = 0;
+      let processedCuestionarios = 0;
+      let lastSyncToken = 0;
       const identifiers = [];
+
       for (const paciente of pacientes) {
-        if (!paciente || !paciente.paciente_id) {
+        if (!paciente || !paciente.pacienteId) {
           continue;
         }
-        const stored = state.pacientes.get(paciente.paciente_id);
-        const incomingUpdatedAt = parseDate(paciente.updated_at);
+        const updatedAtIso = normaliseTimestamp(paciente.updatedAt || paciente.lastModified);
+        const stored = state.pacientes.get(paciente.pacienteId);
+        const incomingUpdatedAt = Date.parse(updatedAtIso);
         if (stored && incomingUpdatedAt < stored.updatedAt) {
           jsonResponse(res, 409, {
             message: 'Conflicto de sincronización',
             conflict: {
               entity: 'pacientes',
-              paciente_id: paciente.paciente_id,
-              incoming_updated_at: paciente.updated_at,
-              stored_updated_at: new Date(stored.updatedAt).toISOString(),
+              pacienteId: paciente.pacienteId,
+              incomingUpdatedAt: updatedAtIso,
+              storedUpdatedAt: new Date(stored.updatedAt).toISOString(),
             },
           });
           return;
         }
-        state.pacientes.set(paciente.paciente_id, {
-          record: paciente,
+        const event = registerEvent('paciente-upserted', paciente, source, correlationId);
+        const record = {
+          ...paciente,
+          updatedAt: updatedAtIso,
+          lastModified: normaliseTimestamp(paciente.lastModified || updatedAtIso),
+          syncToken: event.syncToken,
+        };
+        state.pacientes.set(paciente.pacienteId, {
+          record,
           updatedAt: incomingUpdatedAt,
+          syncToken: event.syncToken,
         });
-        identifiers.push(paciente.paciente_id);
-        registerEvent('paciente-upserted', paciente, req.headers['x-source-system']);
+        processedPacientes += 1;
+        identifiers.push(paciente.pacienteId);
+        lastSyncToken = Math.max(lastSyncToken, event.syncToken);
       }
-      jsonResponse(res, 200, { processed: identifiers.length, identifiers });
-    })
-    .catch((error) => {
-      console.error('Error procesando pacientes', error);
-      jsonResponse(res, 400, { message: 'Payload inválido' });
-    });
-}
 
-function handleCuestionarios(req, res) {
-  readBody(req)
-    .then((body) => {
-      const cuestionarios = Array.isArray(body) ? body : [];
-      const identifiers = [];
       for (const cuestionario of cuestionarios) {
-        if (!cuestionario || !cuestionario.cuestionario_id) {
+        if (!cuestionario || !cuestionario.cuestionarioId) {
           continue;
         }
-        state.cuestionarios.set(cuestionario.cuestionario_id, cuestionario);
-        identifiers.push(cuestionario.cuestionario_id);
-        registerEvent('cuestionario-upserted', cuestionario, req.headers['x-source-system']);
+        const updatedAtIso = normaliseTimestamp(cuestionario.updatedAt || cuestionario.lastModified);
+        const stored = state.cuestionarios.get(cuestionario.cuestionarioId);
+        const incomingUpdatedAt = Date.parse(updatedAtIso);
+        if (stored && incomingUpdatedAt < stored.updatedAt) {
+          jsonResponse(res, 409, {
+            message: 'Conflicto de sincronización',
+            conflict: {
+              entity: 'cuestionarios',
+              cuestionarioId: cuestionario.cuestionarioId,
+              incomingUpdatedAt: updatedAtIso,
+              storedUpdatedAt: new Date(stored.updatedAt).toISOString(),
+            },
+          });
+          return;
+        }
+        const event = registerEvent('cuestionario-upserted', cuestionario, source, correlationId);
+        const record = {
+          ...cuestionario,
+          updatedAt: updatedAtIso,
+          lastModified: normaliseTimestamp(cuestionario.lastModified || updatedAtIso),
+          syncToken: event.syncToken,
+        };
+        state.cuestionarios.set(cuestionario.cuestionarioId, {
+          record,
+          updatedAt: incomingUpdatedAt,
+          syncToken: event.syncToken,
+        });
+        processedCuestionarios += 1;
+        identifiers.push(cuestionario.cuestionarioId);
+        lastSyncToken = Math.max(lastSyncToken, event.syncToken);
       }
-      jsonResponse(res, 200, { processed: identifiers.length, identifiers });
+
+      jsonResponse(res, 200, {
+        processedPacientes,
+        processedCuestionarios,
+        lastSyncToken,
+        createdOrUpdatedIds: identifiers,
+      });
     })
     .catch((error) => {
-      console.error('Error procesando cuestionarios', error);
+      console.error('Error procesando lote de sincronización', error);
       jsonResponse(res, 400, { message: 'Payload inválido' });
     });
 }
 
 function handlePull(req, res, query) {
   const limit = Math.max(1, Math.min(500, Number(query.limit) || 100));
-  const syncToken = query.syncToken ? Number(query.syncToken) : null;
-  const since = query.since ? Date.parse(query.since) : null;
+  const syncToken = query.syncToken ? Number(query.syncToken) : 0;
 
-  const filtered = state.events.filter((event) => {
-    const tokenMatch = syncToken == null || event.syncToken > syncToken;
-    const sinceMatch = since == null || Date.parse(event.occurredAt) >= since;
-    return tokenMatch && sinceMatch;
-  });
-  const events = filtered.slice(0, limit);
-  const nextSyncToken = events.length > 0 ? events[events.length - 1].syncToken : syncToken;
-  const warnings = filtered.length > limit ? ['Resultados truncados por limit'] : [];
+  const pacientes = Array.from(state.pacientes.values())
+    .filter((entry) => entry.syncToken > syncToken)
+    .sort((a, b) => a.syncToken - b.syncToken)
+    .slice(0, limit)
+    .map((entry) => entry.record);
+
+  const cuestionarios = Array.from(state.cuestionarios.values())
+    .filter((entry) => entry.syncToken > syncToken)
+    .sort((a, b) => a.syncToken - b.syncToken)
+    .slice(0, limit)
+    .map((entry) => entry.record);
+
+  const events = state.events
+    .filter((event) => event.syncToken > syncToken)
+    .sort((a, b) => a.syncToken - b.syncToken)
+    .slice(0, limit);
+
+  const lastPacienteToken = pacientes.length > 0 ? pacientes[pacientes.length - 1].syncToken : 0;
+  const lastCuestionarioToken = cuestionarios.length > 0 ? cuestionarios[cuestionarios.length - 1].syncToken : 0;
+  const lastEventToken = events.length > 0 ? events[events.length - 1].syncToken : 0;
+  const nextSyncToken = Math.max(syncToken, lastPacienteToken, lastCuestionarioToken, lastEventToken);
 
   jsonResponse(res, 200, {
+    pacientes,
+    cuestionarios,
     events,
     nextSyncToken,
-    warnings,
   });
 }
 
@@ -214,12 +282,8 @@ function route(req, res) {
     jsonResponse(res, 200, { status: 'UP' });
     return;
   }
-  if (req.method === 'POST' && parsedUrl.pathname === '/sincronizacion/pacientes') {
-    handlePacientes(req, res);
-    return;
-  }
-  if (req.method === 'POST' && parsedUrl.pathname === '/sincronizacion/cuestionarios') {
-    handleCuestionarios(req, res);
+  if (req.method === 'POST' && parsedUrl.pathname === '/sincronizacion/push') {
+    handlePush(req, res);
     return;
   }
   if (req.method === 'GET' && parsedUrl.pathname === '/sincronizacion/pull') {

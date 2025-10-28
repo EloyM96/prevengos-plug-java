@@ -23,34 +23,20 @@ Este procedimiento cubre la secuencia end-to-end para validar la sincronización
 
 ## Captura offline y sincronización
 
-1. Simular la captura de pacientes en el dispositivo desconectado generando el payload JSON (`pacientes.json`).
-   > Puedes tomar como referencia el lote [`payloads/sync-request.json`](../../payloads/sync-request.json)
-   > y dividirlo en los archivos esperados por cada endpoint.
+1. Simular la captura de pacientes y cuestionarios generando un único lote JSON (`sync-request.json`).
+   > Puedes tomar como referencia [`payloads/sync-request.json`](../../payloads/sync-request.json)
+   > y adaptar los identificadores para tu entorno de prueba, incluyendo el campo `source`.
 2. Sincronizar cuando el dispositivo recupera conectividad:
    ```bash
-   http POST "$HUB_URL/sincronizacion/pacientes" \
-     "X-Source-System:$SOURCE_SYSTEM" \
-     < pacientes.json
+   http POST "$HUB_URL/sincronizacion/push" \
+     "Content-Type:application/json" \
+     < sync-request.json
    ```
    > Alternativa con `curl`:
    > ```bash
-   > curl -X POST "$HUB_URL/sincronizacion/pacientes" \
-   >   -H "X-Source-System: $SOURCE_SYSTEM" \
+   > curl -X POST "$HUB_URL/sincronizacion/push" \
    >   -H "Content-Type: application/json" \
-   >   --data-binary @pacientes.json
-   > ```
-3. Repetir el proceso para los cuestionarios:
-   ```bash
-   http POST "$HUB_URL/sincronizacion/cuestionarios" \
-     "X-Source-System:$SOURCE_SYSTEM" \
-     < cuestionarios.json
-   ```
-   > Alternativa con `curl`:
-   > ```bash
-   > curl -X POST "$HUB_URL/sincronizacion/cuestionarios" \
-   >   -H "X-Source-System: $SOURCE_SYSTEM" \
-   >   -H "Content-Type: application/json" \
-   >   --data-binary @cuestionarios.json
+   >   --data-binary @sync-request.json
    > ```
 
 ## Verificación en base de datos

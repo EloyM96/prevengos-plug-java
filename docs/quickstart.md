@@ -43,18 +43,18 @@ curl http://localhost:8080/actuator/health
 ## 4. Ejecutar una sincronización manual
 
 1. Genera payloads `pacientes.json` y `cuestionarios.json` utilizando las plantillas de `contracts/json` o exportando desde la app Android.
-2. Envía ambos lotes con un único `POST /sincronizacion`:
+2. Envía ambos lotes con `POST /sincronizacion/push`:
    ```bash
-    curl -X POST http://localhost:8080/sincronizacion \
+    curl -X POST http://localhost:8080/sincronizacion/push \
       -H 'Content-Type: application/json' \
       -d @payloads/sync-request.json
    ```
    El repositorio incluye un ejemplo en [`payloads/sync-request.json`](../payloads/sync-request.json)
    que puedes adaptar con los datos generados a partir de `contracts/json`. El backend
    devolverá el `last_sync_token` procesado y los identificadores consolidados.
-3. Recupera cambios pendientes con `GET /sincronizacion` especificando el token recibido:
+3. Recupera cambios pendientes con `GET /sincronizacion/pull` especificando el token recibido:
    ```bash
-   curl "http://localhost:8080/sincronizacion?afterToken=${LAST_TOKEN}&limit=50"
+   curl "http://localhost:8080/sincronizacion/pull?syncToken=${LAST_TOKEN}&limit=50"
    ```
 4. Sigue el procedimiento detallado en [`docs/quality/manual-sync-checklist.md`](docs/quality/manual-sync-checklist.md) para validar los registros en SQL Server mediante `sqlcmd` y realizar pulls subsecuentes.
 

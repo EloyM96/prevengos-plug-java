@@ -99,13 +99,13 @@ class SynchronizationIntegrationTest {
         );
 
         SyncPushRequest request = new SyncPushRequest("integration-test", UUID.randomUUID(), List.of(paciente), List.of(cuestionario));
-        ResponseEntity<SyncPushResponse> pushResponse = restTemplate.postForEntity(baseUrl("/sincronizacion"), request, SyncPushResponse.class);
+        ResponseEntity<SyncPushResponse> pushResponse = restTemplate.postForEntity(baseUrl("/sincronizacion/push"), request, SyncPushResponse.class);
         Assertions.assertThat(pushResponse.getStatusCode().is2xxSuccessful()).isTrue();
         Assertions.assertThat(pushResponse.getBody()).isNotNull();
         long token = pushResponse.getBody().lastSyncToken();
         Assertions.assertThat(token).isGreaterThan(0);
 
-        ResponseEntity<SyncPullResponse> pullResponse = restTemplate.getForEntity(baseUrl("/sincronizacion?afterToken=0&limit=10"), SyncPullResponse.class);
+        ResponseEntity<SyncPullResponse> pullResponse = restTemplate.getForEntity(baseUrl("/sincronizacion/pull?syncToken=0&limit=10"), SyncPullResponse.class);
         Assertions.assertThat(pullResponse.getStatusCode().is2xxSuccessful()).isTrue();
         Assertions.assertThat(pullResponse.getBody()).isNotNull();
         Assertions.assertThat(pullResponse.getBody().pacientes()).isNotEmpty();

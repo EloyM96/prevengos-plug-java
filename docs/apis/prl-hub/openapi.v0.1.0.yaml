@@ -206,31 +206,27 @@ paths:
   /sincronizacion/pull:
     get:
       tags: [Sincronizacion]
-      summary: Obtiene cambios incrementales desde una marca temporal
+      summary: Obtiene cambios incrementales a partir de un token
       parameters:
         - in: query
-          name: since
-          description: Marca temporal ISO 8601 desde la que se solicitan cambios
+          name: syncToken
+          description: Último token consumido por el cliente. Si no se indica se parte desde el origen.
           required: false
           schema:
-            type: string
-            format: date-time
-        - in: query
-          name: entities
-          description: Lista separada por comas de entidades a incluir (p.ej. pacientes, cuestionarios)
-          required: false
-          schema:
-            type: string
+            type: integer
+            format: int64
         - in: query
           name: limit
           description: Máximo de elementos por página (hasta 500)
           required: false
           schema:
             type: integer
-            default: 200
+            default: 100
+            minimum: 1
+            maximum: 500
       responses:
         '200':
-          description: Colección de cambios por entidad y cursor de continuación
+          description: Listado incremental de pacientes, cuestionarios y eventos con el siguiente token
           content:
             application/json:
               schema:
@@ -240,7 +236,7 @@ paths:
   /sincronizacion/push:
     post:
       tags: [Sincronizacion]
-      summary: Entrega lote de eventos offline capturados en el cliente
+      summary: Entrega lote de altas/actualizaciones desde un cliente offline
       requestBody:
         required: true
         content:
@@ -248,12 +244,12 @@ paths:
             schema:
               $ref: '#/components/schemas/SyncPushRequest'
       responses:
-        '202':
-          description: Lote aceptado
+        '200':
+          description: Lote procesado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AsyncJobResponse'
+                $ref: '#/components/schemas/SyncPushResponse'
         '409':
           description: Evento duplicado o conflicto de versión
           content:
@@ -554,72 +550,170 @@ components:
           format: date-time
     SyncPullResponse:
       type: object
-      required: [server_timestamp, changes]
+      required: [pacientes, cuestionarios, events, nextSyncToken]
       properties:
-        server_timestamp:
+        pacientes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PacienteSync'
+        cuestionarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/CuestionarioSync'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncEvent'
+        nextSyncToken:
+          type: integer
+          format: int64
+    SyncPushRequest:
+      type: object
+      required: [source, pacientes, cuestionarios]
+      properties:
+        source:
           type: string
-          format: date-time
-        next_since:
+        correlationId:
           type: string
-          format: date-time
-        changes:
-          type: object
-          additionalProperties:
-            type: array
-            items:
-              type: object
-              properties:
-                entity:
-                  type: string
-                items:
-                  type: array
-                  items:
-                    type: object
-        warnings:
+          format: uuid
+        pacientes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PacienteSync'
+        cuestionarios:
+          type: array
+          items:
+            $ref: '#/components/schemas/CuestionarioSync'
+    SyncPushResponse:
+      type: object
+      required: [processedPacientes, processedCuestionarios, lastSyncToken]
+      properties:
+        processedPacientes:
+          type: integer
+          format: int64
+        processedCuestionarios:
+          type: integer
+          format: int64
+        lastSyncToken:
+          type: integer
+          format: int64
+        createdOrUpdatedIds:
           type: array
           items:
             type: string
-    SyncPushRequest:
+            format: uuid
+    PacienteSync:
       type: object
-      required: [client_id, batches]
+      required: [pacienteId, nombre, apellidos]
       properties:
-        client_id:
-          type: string
-        last_sync:
-          type: string
-          format: date-time
-        batches:
-          type: array
-          items:
-            $ref: '#/components/schemas/SyncBatch'
-    SyncBatch:
-      type: object
-      required: [entity, items]
-      properties:
-        entity:
-          type: string
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/SyncItem'
-    SyncItem:
-      type: object
-      required: [event_id, payload]
-      properties:
-        event_id:
+        pacienteId:
           type: string
           format: uuid
-        change_version:
-          type: integer
-        payload:
-          type: object
-          additionalProperties: true
-        deleted:
-          type: boolean
-          default: false
-        observed_at:
+        nif:
+          type: string
+        nombre:
+          type: string
+        apellidos:
+          type: string
+        fechaNacimiento:
+          type: string
+          format: date
+        sexo:
+          type: string
+          maxLength: 1
+        telefono:
+          type: string
+        email:
+          type: string
+          format: email
+        empresaId:
+          type: string
+          format: uuid
+        centroId:
+          type: string
+          format: uuid
+        externoRef:
+          type: string
+        createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastModified:
+          type: string
+          format: date-time
+        syncToken:
+          type: integer
+          format: int64
+    CuestionarioSync:
+      type: object
+      required: [cuestionarioId, pacienteId, plantillaCodigo, estado]
+      properties:
+        cuestionarioId:
+          type: string
+          format: uuid
+        pacienteId:
+          type: string
+          format: uuid
+        plantillaCodigo:
+          type: string
+        estado:
+          type: string
+        respuestas:
+          type: string
+          description: Cadena JSON con las respuestas capturadas.
+        firmas:
+          type: string
+          description: Cadena JSON con las firmas asociadas.
+        adjuntos:
+          type: string
+          description: Cadena JSON con referencias a adjuntos.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastModified:
+          type: string
+          format: date-time
+        syncToken:
+          type: integer
+          format: int64
+    SyncEvent:
+      type: object
+      required: [syncToken, eventId, eventType, version, occurredAt, source, payload, metadata]
+      properties:
+        syncToken:
+          type: integer
+          format: int64
+        eventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        version:
+          type: integer
+        occurredAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+          nullable: true
+        causationId:
+          type: string
+          format: uuid
+          nullable: true
+        payload:
+          type: string
+          description: Payload serializado del evento.
+        metadata:
+          type: string
+          description: Metadata adicional serializada.
   responses:
     NotFound:
       description: Recurso no encontrado

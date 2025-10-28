@@ -2,109 +2,129 @@ package com.prevengos.plug.android.data.mappers;
 
 import com.prevengos.plug.android.data.local.entity.CuestionarioEntity;
 import com.prevengos.plug.android.data.local.entity.PacienteEntity;
-import com.prevengos.plug.android.data.local.entity.RespuestaLocal;
-import com.prevengos.plug.android.data.remote.model.CuestionarioPayload;
-import com.prevengos.plug.android.data.remote.model.PacientePayload;
-import com.prevengos.plug.android.data.remote.model.RespuestaPayload;
+import com.prevengos.plug.android.data.local.room.JsonConverters;
+import com.prevengos.plug.shared.sync.dto.CuestionarioDto;
+import com.prevengos.plug.shared.sync.dto.PacienteDto;
 
-import java.util.ArrayList;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 public final class EntityMappers {
+
+    private static final JsonConverters CONVERTERS = new JsonConverters();
+
     private EntityMappers() {
     }
 
-    public static PacientePayload toPayload(PacienteEntity entity) {
-        return new PacientePayload(
-                entity.getPacienteId(),
+    public static PacienteDto toSyncPaciente(PacienteEntity entity) {
+        return new PacienteDto(
+                UUID(entity.getPacienteId()),
                 entity.getNif(),
                 entity.getNombre(),
                 entity.getApellidos(),
-                entity.getFechaNacimiento(),
+                parseDate(entity.getFechaNacimiento()),
                 entity.getSexo(),
                 entity.getTelefono(),
                 entity.getEmail(),
-                entity.getEmpresaId(),
-                entity.getCentroId(),
+                UUID(entity.getEmpresaId()),
+                UUID(entity.getCentroId()),
                 entity.getExternoRef(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt(),
-                entity.getLastModified(),
-                entity.getSyncToken());
+                parseDateTime(entity.getCreatedAt()),
+                parseDateTime(entity.getUpdatedAt()),
+                toOffsetDateTime(entity.getLastModified()),
+                parseLong(entity.getSyncToken())
+        );
     }
 
-    public static PacienteEntity toEntity(PacientePayload payload, boolean isDirty) {
+    public static PacienteEntity toEntity(PacienteDto dto, boolean isDirty) {
         return new PacienteEntity(
-                payload.getPacienteId(),
-                payload.getNif(),
-                payload.getNombre(),
-                payload.getApellidos(),
-                payload.getFechaNacimiento(),
-                payload.getSexo(),
-                payload.getTelefono(),
-                payload.getEmail(),
-                payload.getEmpresaId(),
-                payload.getCentroId(),
-                payload.getExternoRef(),
-                payload.getCreatedAt(),
-                payload.getUpdatedAt(),
-                payload.getLastModified(),
-                payload.getSyncToken(),
-                isDirty);
+                dto.pacienteId() != null ? dto.pacienteId().toString() : null,
+                dto.nif(),
+                dto.nombre(),
+                dto.apellidos(),
+                formatDate(dto.fechaNacimiento()),
+                dto.sexo(),
+                dto.telefono(),
+                dto.email(),
+                dto.empresaId() != null ? dto.empresaId().toString() : null,
+                dto.centroId() != null ? dto.centroId().toString() : null,
+                dto.externoRef(),
+                formatDateTime(dto.createdAt()),
+                formatDateTime(dto.updatedAt()),
+                dto.lastModified() != null ? dto.lastModified().toInstant().toEpochMilli() : System.currentTimeMillis(),
+                dto.syncToken() != null ? dto.syncToken().toString() : null,
+                isDirty
+        );
     }
 
-    public static CuestionarioPayload toPayload(CuestionarioEntity entity) {
-        List<RespuestaPayload> respuestas = new ArrayList<>();
-        for (RespuestaLocal local : entity.getRespuestas()) {
-            respuestas.add(toPayload(local));
-        }
-        return new CuestionarioPayload(
-                entity.getCuestionarioId(),
-                entity.getPacienteId(),
+    public static CuestionarioDto toSyncCuestionario(CuestionarioEntity entity) {
+        return new CuestionarioDto(
+                UUID(entity.getCuestionarioId()),
+                UUID(entity.getPacienteId()),
                 entity.getPlantillaCodigo(),
                 entity.getEstado(),
-                respuestas,
-                entity.getFirmas(),
-                entity.getAdjuntos(),
-                entity.getCreatedAt(),
-                entity.getUpdatedAt(),
-                entity.getLastModified(),
-                entity.getSyncToken());
+                CONVERTERS.fromRespuestas(entity.getRespuestas()),
+                CONVERTERS.fromStringList(entity.getFirmas()),
+                CONVERTERS.fromStringList(entity.getAdjuntos()),
+                parseDateTime(entity.getCreatedAt()),
+                parseDateTime(entity.getUpdatedAt()),
+                toOffsetDateTime(entity.getLastModified()),
+                parseLong(entity.getSyncToken())
+        );
     }
 
-    public static CuestionarioEntity toEntity(CuestionarioPayload payload, boolean isDirty) {
-        List<RespuestaLocal> respuestas = new ArrayList<>();
-        for (RespuestaPayload remote : payload.getRespuestas()) {
-            respuestas.add(toLocal(remote));
-        }
+    public static CuestionarioEntity toEntity(CuestionarioDto dto, boolean isDirty) {
         return new CuestionarioEntity(
-                payload.getCuestionarioId(),
-                payload.getPacienteId(),
-                payload.getPlantillaCodigo(),
-                payload.getEstado(),
-                respuestas,
-                payload.getFirmas(),
-                payload.getAdjuntos(),
-                payload.getCreatedAt(),
-                payload.getUpdatedAt(),
-                payload.getLastModified(),
-                payload.getSyncToken(),
-                isDirty);
+                dto.cuestionarioId() != null ? dto.cuestionarioId().toString() : null,
+                dto.pacienteId() != null ? dto.pacienteId().toString() : null,
+                dto.plantillaCodigo(),
+                dto.estado(),
+                CONVERTERS.toRespuestas(dto.respuestas()),
+                CONVERTERS.toStringList(dto.firmas()),
+                CONVERTERS.toStringList(dto.adjuntos()),
+                formatDateTime(dto.createdAt()),
+                formatDateTime(dto.updatedAt()),
+                dto.lastModified() != null ? dto.lastModified().toInstant().toEpochMilli() : System.currentTimeMillis(),
+                dto.syncToken() != null ? dto.syncToken().toString() : null,
+                isDirty
+        );
     }
 
-    public static RespuestaPayload toPayload(RespuestaLocal local) {
-        return new RespuestaPayload(
-                local.getPreguntaCodigo(),
-                local.getValor(),
-                local.getUnidad(),
-                local.getMetadata());
+    private static java.util.UUID UUID(String value) {
+        return value == null || value.isBlank() ? null : java.util.UUID.fromString(value);
     }
 
-    public static RespuestaLocal toLocal(RespuestaPayload payload) {
-        return new RespuestaLocal(
-                payload.getPreguntaCodigo(),
-                payload.getValor(),
-                payload.getUnidad(),
-                payload.getMetadata());
+    private static OffsetDateTime parseDateTime(String value) {
+        return value == null || value.isBlank() ? null : OffsetDateTime.parse(value);
+    }
+
+    private static String formatDateTime(OffsetDateTime value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static LocalDate parseDate(String value) {
+        return value == null || value.isBlank() ? null : LocalDate.parse(value);
+    }
+
+    private static String formatDate(LocalDate value) {
+        return value == null ? null : value.toString();
+    }
+
+    private static Long parseLong(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static OffsetDateTime toOffsetDateTime(long epochMillis) {
+        return OffsetDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneOffset.UTC);
     }
 }

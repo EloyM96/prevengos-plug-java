@@ -14,8 +14,10 @@ import java.util.concurrent.Executors;
 
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import retrofit2.Retrofit;
-import retrofit2.converter.moshi.MoshiConverterFactory;
+import retrofit2.converter.jackson.JacksonConverterFactory;
 
 public class AppContainer {
     private final PrevengosDatabase database;
@@ -32,9 +34,11 @@ public class AppContainer {
         database = PrevengosDatabase.instance(context);
         ioExecutor = Executors.newSingleThreadExecutor();
         okHttpClient = buildHttpClient(BuildConfig.APPLICATION_ID);
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
         retrofit = new Retrofit.Builder()
                 .baseUrl(resolveBaseUrl(BuildConfig.SYNC_BASE_URL))
-                .addConverterFactory(MoshiConverterFactory.create())
+                .addConverterFactory(JacksonConverterFactory.create(objectMapper))
                 .client(okHttpClient)
                 .build();
         syncApi = retrofit.create(PrevengosSyncApi.class);

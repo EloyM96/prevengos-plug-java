@@ -1,12 +1,14 @@
 package com.prevengos.plug.hubbackend;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prevengos.plug.hubbackend.dto.BatchSyncResponse;
-import com.prevengos.plug.hubbackend.dto.SyncPullResponse;
 import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import com.prevengos.plug.hubbackend.persistence.SqlServerTestResource;
-import com.prevengos.plug.shared.dto.CuestionarioDto;
-import com.prevengos.plug.shared.dto.PacienteDto;
+import com.prevengos.plug.shared.sync.dto.CuestionarioDto;
+import com.prevengos.plug.shared.sync.dto.PacienteDto;
+import com.prevengos.plug.shared.sync.dto.SyncEventDto;
+import com.prevengos.plug.shared.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPushRequest;
+import com.prevengos.plug.shared.sync.dto.SyncPushResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,7 +104,7 @@ class HubBackendIntegrationTest {
     }
 
     @Test
-    void pushEndpointsPersistDataAndPullReturnsEvents() throws Exception {
+    void pushEndpointPersistsDataAndPullReturnsEntities() throws Exception {
         UUID pacienteId = UUID.randomUUID();
         OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC).minusDays(1).withNano(0);
         OffsetDateTime updatedAt = createdAt.plusHours(12);
@@ -120,19 +122,44 @@ class HubBackendIntegrationTest {
                 UUID.randomUUID(),
                 "EXT-100",
                 createdAt,
-                updatedAt
+                updatedAt,
+                updatedAt,
+                null
         );
 
-        MvcResult pacienteResult = mockMvc.perform(post("/sincronizacion/pacientes")
+        UUID cuestionarioId = UUID.randomUUID();
+        CuestionarioDto cuestionario = new CuestionarioDto(
+                cuestionarioId,
+                pacienteId,
+                "CS-01",
+                "completado",
+                "{\"resultado\":95}",
+                "[{\"firma\":\"dr.prevengos\"}]",
+                "[]",
+                createdAt,
+                updatedAt.plusHours(2),
+                updatedAt.plusHours(2),
+                null
+        );
+
+        SyncPushRequest pushRequest = new SyncPushRequest(
+                "integration-suite",
+                UUID.randomUUID(),
+                List.of(paciente),
+                List.of(cuestionario)
+        );
+
+        MvcResult pushResult = mockMvc.perform(post("/sincronizacion/push")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Source-System", "integration-suite")
-                        .content(objectMapper.writeValueAsString(List.of(paciente))))
+                        .content(objectMapper.writeValueAsString(pushRequest)))
                 .andExpect(status().isOk())
                 .andReturn();
-        BatchSyncResponse pacienteResponse = objectMapper.readValue(
-                pacienteResult.getResponse().getContentAsByteArray(),
-                BatchSyncResponse.class);
-        assertThat(pacienteResponse.processed()).isEqualTo(1);
+        SyncPushResponse pushResponse = objectMapper.readValue(
+                pushResult.getResponse().getContentAsByteArray(),
+                SyncPushResponse.class);
+        assertThat(pushResponse.processedPacientes()).isEqualTo(1);
+        assertThat(pushResponse.processedCuestionarios()).isEqualTo(1);
+        assertThat(pushResponse.lastSyncToken()).isGreaterThan(0);
 
         MapSqlParameterSource pacienteParams = new MapSqlParameterSource("paciente_id", pacienteId);
         Long pacienteSyncToken = jdbcTemplate.queryForObject(
@@ -141,29 +168,12 @@ class HubBackendIntegrationTest {
                 Long.class);
         assertThat(pacienteSyncToken).isNotNull();
 
-        UUID cuestionarioId = UUID.randomUUID();
-        CuestionarioDto cuestionario = new CuestionarioDto(
-                cuestionarioId,
-                pacienteId,
-                "CS-01",
-                "completado",
-                Map.of("resultado", 95),
-                List.of(Map.of("firma", "dr.prevengos")),
-                List.of(),
-                createdAt,
-                updatedAt.plusHours(2)
-        );
-
-        MvcResult cuestionarioResult = mockMvc.perform(post("/sincronizacion/cuestionarios")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Source-System", "integration-suite")
-                        .content(objectMapper.writeValueAsString(List.of(cuestionario))))
-                .andExpect(status().isOk())
-                .andReturn();
-        BatchSyncResponse cuestionarioResponse = objectMapper.readValue(
-                cuestionarioResult.getResponse().getContentAsByteArray(),
-                BatchSyncResponse.class);
-        assertThat(cuestionarioResponse.processed()).isEqualTo(1);
+        MapSqlParameterSource cuestionarioParams = new MapSqlParameterSource("cuestionario_id", cuestionarioId);
+        Long cuestionarioSyncToken = jdbcTemplate.queryForObject(
+                "SELECT sync_token FROM dbo.cuestionarios WHERE cuestionario_id = :cuestionario_id",
+                cuestionarioParams,
+                Long.class);
+        assertThat(cuestionarioSyncToken).isNotNull();
 
         List<Map<String, Object>> events = jdbcTemplate.getJdbcTemplate().queryForList(
                 "SELECT sync_token, event_type FROM dbo.sync_events ORDER BY sync_token ASC");
@@ -173,17 +183,19 @@ class HubBackendIntegrationTest {
                 "cuestionario-upserted");
 
         MvcResult pullResult = mockMvc.perform(get("/sincronizacion/pull")
-                        .param("limit", "10"))
+                        .param("limit", "10")
+                        .param("syncToken", "0"))
                 .andExpect(status().isOk())
                 .andReturn();
         SyncPullResponse pullResponse = objectMapper.readValue(
                 pullResult.getResponse().getContentAsByteArray(),
                 SyncPullResponse.class);
-        assertThat(pullResponse.events()).hasSize(2);
-        assertThat(pullResponse.events()).extracting(event -> event.eventType()).containsExactly(
-                "paciente-upserted", "cuestionario-upserted");
-        Long lastToken = pullResponse.events().get(pullResponse.events().size() - 1).syncToken();
-        assertThat(pullResponse.nextToken()).isEqualTo(lastToken);
+        assertThat(pullResponse.pacientes()).extracting(PacienteDto::pacienteId).contains(pacienteId);
+        assertThat(pullResponse.cuestionarios()).extracting(CuestionarioDto::cuestionarioId).contains(cuestionarioId);
+        assertThat(pullResponse.events()).extracting(SyncEventDto::eventType)
+                .containsExactly("paciente-upserted", "cuestionario-upserted");
+        long lastToken = pullResponse.nextSyncToken();
+        assertThat(lastToken).isGreaterThanOrEqualTo(pushResponse.lastSyncToken());
 
         MvcResult secondPull = mockMvc.perform(get("/sincronizacion/pull")
                         .param("limit", "5")
@@ -193,8 +205,10 @@ class HubBackendIntegrationTest {
         SyncPullResponse emptyResponse = objectMapper.readValue(
                 secondPull.getResponse().getContentAsByteArray(),
                 SyncPullResponse.class);
+        assertThat(emptyResponse.pacientes()).isEmpty();
+        assertThat(emptyResponse.cuestionarios()).isEmpty();
         assertThat(emptyResponse.events()).isEmpty();
-        assertThat(emptyResponse.nextToken()).isEqualTo(lastToken);
+        assertThat(emptyResponse.nextSyncToken()).isEqualTo(lastToken);
 
         RrhhCsvExportJob.RrhhExportResult exportResult = rrhhCsvExportJob.runExport("integration-test");
         Path pacientesCsv = exportResult.stagingDir().resolve("pacientes.csv");

@@ -13,10 +13,10 @@ import com.prevengos.plug.gateway.sqlserver.SyncEventGateway;
 import com.prevengos.plug.hubbackend.config.RrhhExportProperties;
 import com.prevengos.plug.hubbackend.job.RrhhCsvExportJob;
 import com.prevengos.plug.shared.persistence.jdbc.CuestionarioCsvRow;
-import com.prevengos.plug.shared.persistence.jdbc.CuestionarioRecord;
 import com.prevengos.plug.shared.persistence.jdbc.PacienteCsvRow;
-import com.prevengos.plug.shared.persistence.jdbc.PacienteRecord;
 import com.prevengos.plug.shared.persistence.jdbc.SyncEventRecord;
+import com.prevengos.plug.shared.sync.dto.CuestionarioDto;
+import com.prevengos.plug.shared.sync.dto.PacienteDto;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -72,7 +72,7 @@ class SqlServerGatewayIntegrationTest {
         UUID pacienteId = UUID.randomUUID();
         OffsetDateTime base = OffsetDateTime.now(ZoneOffset.UTC).withNano(0);
 
-        PacienteRecord record = new PacienteRecord(
+        PacienteDto dto = new PacienteDto(
                 pacienteId,
                 "12345678A",
                 "Ana",
@@ -89,14 +89,14 @@ class SqlServerGatewayIntegrationTest {
                 base,
                 1L
         );
-        gateway.upsertPaciente(record);
+        gateway.upsert(dto, base, 1L);
 
-        List<PacienteRecord> fetched = gateway.findByIds(List.of(pacienteId));
-        assertThat(fetched).hasSize(1);
-        assertThat(fetched.get(0).nombre()).isEqualTo("Ana");
+        List<PacienteDto> fetched = gateway.fetchAfterToken(0, 10);
+        assertThat(fetched).extracting(PacienteDto::pacienteId).contains(pacienteId);
 
-        List<PacienteRecord> updated = gateway.findUpdatedSince(base.minusHours(1), 10);
-        assertThat(updated).extracting(PacienteRecord::pacienteId).containsExactly(pacienteId);
+        PacienteDto byId = gateway.findById(pacienteId);
+        assertThat(byId).isNotNull();
+        assertThat(byId.nombre()).isEqualTo("Ana");
 
         List<PacienteCsvRow> csvRows = gateway.fetchForRrhhExport(base.minusDays(1));
         assertThat(csvRows).hasSize(1);
@@ -119,7 +119,7 @@ class SqlServerGatewayIntegrationTest {
                         .addValue("created", now.minusDays(1))
                         .addValue("updated", now.minusHours(1)));
 
-        CuestionarioRecord record = new CuestionarioRecord(
+        CuestionarioDto dto = new CuestionarioDto(
                 cuestionarioId,
                 pacienteId,
                 "CS-01",
@@ -132,14 +132,10 @@ class SqlServerGatewayIntegrationTest {
                 now,
                 5L
         );
-        gateway.upsertCuestionario(record);
+        gateway.upsert(dto, now, 5L);
 
-        List<CuestionarioRecord> fetched = gateway.findByPacienteId(pacienteId);
-        assertThat(fetched).hasSize(1);
-        assertThat(fetched.get(0).estado()).isEqualTo("completado");
-
-        List<CuestionarioRecord> updated = gateway.findUpdatedSince(now.minusHours(2), 10);
-        assertThat(updated).extracting(CuestionarioRecord::cuestionarioId).containsExactly(cuestionarioId);
+        List<CuestionarioDto> fetched = gateway.fetchAfterToken(0, 10);
+        assertThat(fetched).extracting(CuestionarioDto::cuestionarioId).contains(cuestionarioId);
 
         List<CuestionarioCsvRow> csvRows = gateway.fetchForRrhhExport(now.minusDays(1));
         assertThat(csvRows).hasSize(1);

@@ -23,14 +23,15 @@ public class SynchronizationController {
         this.synchronizationService = synchronizationService;
     }
 
-    @PostMapping
+    @PostMapping("/push")
     public ResponseEntity<SyncPushResponse> push(@Valid @RequestBody SyncPushRequest request) {
         return ResponseEntity.ok(synchronizationService.push(request));
     }
 
-    @GetMapping
-    public ResponseEntity<SyncPullResponse> pull(@RequestParam(name = "afterToken", defaultValue = "0") long afterToken,
+    @GetMapping("/pull")
+    public ResponseEntity<SyncPullResponse> pull(@RequestParam(name = "syncToken", required = false) Long syncToken,
                                                  @RequestParam(name = "limit", defaultValue = "100") int limit) {
-        return ResponseEntity.ok(synchronizationService.pull(afterToken, limit));
+        long startingToken = syncToken != null ? syncToken : 0L;
+        return ResponseEntity.ok(synchronizationService.pull(startingToken, limit));
     }
 }

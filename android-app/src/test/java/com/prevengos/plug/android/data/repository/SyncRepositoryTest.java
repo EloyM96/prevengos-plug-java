@@ -3,7 +3,6 @@ package com.prevengos.plug.android.data.repository;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,21 +15,19 @@ import com.prevengos.plug.android.data.local.entity.PacienteEntity;
 import com.prevengos.plug.android.data.local.entity.RespuestaLocal;
 import com.prevengos.plug.android.data.local.entity.SyncMetadata;
 import com.prevengos.plug.android.data.remote.api.PrevengosSyncApi;
-import com.prevengos.plug.android.data.remote.model.AsyncJobResponse;
-import com.prevengos.plug.android.data.remote.model.SyncChangeEnvelope;
-import com.prevengos.plug.android.data.remote.model.SyncChangeItem;
-import com.prevengos.plug.android.data.remote.model.SyncEntityPushRequest;
-import com.prevengos.plug.android.data.remote.model.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.CuestionarioDto;
+import com.prevengos.plug.shared.sync.dto.PacienteDto;
+import com.prevengos.plug.shared.sync.dto.SyncPullResponse;
+import com.prevengos.plug.shared.sync.dto.SyncPushResponse;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.io.IOException;
+import java.time.OffsetDateTime;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import retrofit2.mock.Calls;
@@ -54,8 +51,8 @@ public class SyncRepositoryTest {
     }
 
     @Test
-    public void syncAllPushesDirtyEntitiesAndAppliesPull() throws IOException {
-        SyncMetadata metadata = new SyncMetadata("global", 1700000000000L, "token-1");
+    public void syncAllPushesAndPullsUsingNewContract() throws IOException {
+        SyncMetadata metadata = new SyncMetadata("global", 1700000000000L, "10");
         when(syncMetadataDao.getMetadata("global")).thenReturn(metadata);
 
         PacienteEntity dirtyPaciente = new PacienteEntity(
@@ -73,7 +70,7 @@ public class SyncRepositoryTest {
                 "2024-03-01T09:00:00Z",
                 "2024-03-01T09:00:00Z",
                 1700000005000L,
-                "token-local",
+                "8",
                 true
         );
         when(pacienteDao.dirtyPacientes()).thenReturn(Collections.singletonList(dirtyPaciente));
@@ -89,100 +86,68 @@ public class SyncRepositoryTest {
                 "2024-03-01T10:00:00Z",
                 "2024-03-01T10:00:00Z",
                 1700000006000L,
-                "token-local",
+                "8",
                 true
         );
         when(cuestionarioDao.dirtyCuestionarios()).thenReturn(Collections.singletonList(dirtyCuestionario));
 
-        when(syncApi.pushPacientes(any())).thenReturn(Calls.response(new AsyncJobResponse(
-                "job-1",
-                "accepted",
-                UUID.randomUUID().toString(),
-                "2024-03-01T10:05:00Z"
-        )));
-        when(syncApi.pushCuestionarios(any())).thenReturn(Calls.response(new AsyncJobResponse(
-                "job-2",
-                "accepted",
-                UUID.randomUUID().toString(),
-                "2024-03-01T10:05:00Z"
-        )));
+        SyncPushResponse pushResponse = new SyncPushResponse(1, 1, 25L, List.of(UUID.randomUUID()));
+        when(syncApi.push(any())).thenReturn(Calls.response(pushResponse));
 
-        Map<String, Object> pacientePayload = new HashMap<>();
-        pacientePayload.put("paciente_id", "remote-paciente-1");
-        pacientePayload.put("nif", "87654321B");
-        pacientePayload.put("nombre", "Lucía");
-        pacientePayload.put("apellidos", "Prevengos");
-        pacientePayload.put("fecha_nacimiento", "1992-07-21");
-        pacientePayload.put("sexo", "F");
-        pacientePayload.put("telefono", "+34910000000");
-        pacientePayload.put("email", "lucia.prevengos@example.com");
-        pacientePayload.put("empresa_id", "empresa-remote");
-        pacientePayload.put("centro_id", "centro-remote");
-        pacientePayload.put("externo_ref", "EXT-200");
-        pacientePayload.put("created_at", "2024-03-04T09:30:00Z");
-        pacientePayload.put("updated_at", "2024-03-04T11:15:00Z");
-        pacientePayload.put("last_modified", 1709550900000L);
-        pacientePayload.put("sync_token", "remote-token");
-
-        Map<String, Object> cuestionarioPayload = new HashMap<>();
-        cuestionarioPayload.put("cuestionario_id", "remote-cuestionario-1");
-        cuestionarioPayload.put("paciente_id", "remote-paciente-1");
-        cuestionarioPayload.put("plantilla_codigo", "AUTO-CS-01");
-        cuestionarioPayload.put("estado", "validado");
-        cuestionarioPayload.put("respuestas", Collections.emptyList());
-        cuestionarioPayload.put("firmas", Collections.singletonList("dr.prevengos"));
-        cuestionarioPayload.put("adjuntos", Collections.singletonList("informe-prevengos.pdf"));
-        cuestionarioPayload.put("created_at", "2024-03-04T11:30:00Z");
-        cuestionarioPayload.put("updated_at", "2024-03-04T11:30:00Z");
-        cuestionarioPayload.put("last_modified", 1709551800000L);
-        cuestionarioPayload.put("sync_token", "remote-token");
-
-        SyncChangeItem pacienteChange = new SyncChangeItem(
-                UUID.randomUUID().toString(),
-                1L,
-                pacientePayload,
-                false,
-                "2024-03-04T12:00:00Z"
-        );
-        SyncChangeItem cuestionarioDeleted = new SyncChangeItem(
-                UUID.randomUUID().toString(),
-                1L,
-                cuestionarioPayload,
-                true,
-                "2024-03-04T12:05:00Z"
+        PacienteDto remotePaciente = new PacienteDto(
+                UUID.randomUUID(),
+                "87654321B",
+                "Lucía",
+                "Prevengos",
+                OffsetDateTime.parse("1992-07-21T00:00:00Z").toLocalDate(),
+                "F",
+                "+34910000000",
+                "lucia.prevengos@example.com",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "EXT-200",
+                OffsetDateTime.parse("2024-03-04T09:30:00Z"),
+                OffsetDateTime.parse("2024-03-04T11:15:00Z"),
+                OffsetDateTime.parse("2024-03-04T11:15:00Z"),
+                30L
         );
 
-        Map<String, List<SyncChangeEnvelope>> changes = new HashMap<>();
-        changes.put("pacientes", Collections.singletonList(new SyncChangeEnvelope("pacientes", Collections.singletonList(pacienteChange))));
-        changes.put("cuestionarios", Collections.singletonList(new SyncChangeEnvelope("cuestionarios", Collections.singletonList(cuestionarioDeleted))));
+        CuestionarioDto remoteCuestionario = new CuestionarioDto(
+                UUID.randomUUID(),
+                remotePaciente.pacienteId(),
+                "AUTO-CS-01",
+                "validado",
+                "[]",
+                "[\"dr.prevengos\"]",
+                "[\"informe-prevengos.pdf\"]",
+                OffsetDateTime.parse("2024-03-04T11:30:00Z"),
+                OffsetDateTime.parse("2024-03-04T11:30:00Z"),
+                OffsetDateTime.parse("2024-03-04T11:30:00Z"),
+                31L
+        );
 
         SyncPullResponse pullResponse = new SyncPullResponse(
-                "2024-03-04T12:10:00Z",
-                "token-2",
-                changes,
-                Collections.singletonList("Conflicto resuelto en servidor")
+                List.of(remotePaciente),
+                List.of(remoteCuestionario),
+                List.of(),
+                32L
         );
-        when(syncApi.pull(any(), any(), any())).thenReturn(Calls.response(pullResponse));
+        when(syncApi.pull(any(), any())).thenReturn(Calls.response(pullResponse));
 
         repository.syncAll();
 
-        ArgumentCaptor<SyncEntityPushRequest> pacienteRequest = ArgumentCaptor.forClass(SyncEntityPushRequest.class);
-        verify(syncApi).pushPacientes(pacienteRequest.capture());
-        assertEquals("android-e2e", pacienteRequest.getValue().getClientId());
-        assertEquals(1, pacienteRequest.getValue().getItems().size());
-        assertEquals("token-1", pacienteRequest.getValue().getLastSyncToken());
-
+        verify(syncApi).push(any());
         verify(pacienteDao).markAsClean(dirtyPaciente.getPacienteId());
         verify(cuestionarioDao).markAsClean(dirtyCuestionario.getCuestionarioId());
 
-        verify(pacienteDao).upsert(argThat(entity -> "remote-paciente-1".equals(entity.getPacienteId())));
-        verify(cuestionarioDao).deleteById("remote-cuestionario-1");
+        verify(pacienteDao).upsert(any(PacienteEntity.class));
+        verify(cuestionarioDao).upsert(any(CuestionarioEntity.class));
 
         ArgumentCaptor<SyncMetadata> metadataCaptor = ArgumentCaptor.forClass(SyncMetadata.class);
         verify(syncMetadataDao).upsert(metadataCaptor.capture());
         SyncMetadata savedMetadata = metadataCaptor.getValue();
         assertEquals("global", savedMetadata.getResourceType());
-        assertEquals("token-2", savedMetadata.getSyncToken());
+        assertEquals("32", savedMetadata.getSyncToken());
         assertNotNull(savedMetadata.getLastSyncedAt());
     }
 }

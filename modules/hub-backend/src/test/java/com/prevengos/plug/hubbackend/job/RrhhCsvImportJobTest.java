@@ -18,6 +18,7 @@ import java.util.HexFormat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -64,8 +65,8 @@ class RrhhCsvImportJobTest {
         RrhhCsvImportJob job = new RrhhCsvImportJob(pacienteGateway, cuestionarioGateway, csvFileReader, properties);
         RrhhCsvImportJob.RrhhImportReport report = job.processInbox("test");
 
-        verify(pacienteGateway).upsertPaciente(any());
-        verify(cuestionarioGateway).upsertCuestionario(any());
+        verify(pacienteGateway).upsert(any(), any(), anyLong());
+        verify(cuestionarioGateway).upsert(any(), any(), anyLong());
         assertThat(report.pacientesImported()).isEqualTo(1);
         assertThat(report.cuestionariosImported()).isEqualTo(1);
         assertThat(archive.resolve("20240202/rrhh/prevengos")).exists();
