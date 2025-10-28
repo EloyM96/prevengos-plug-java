@@ -11,6 +11,15 @@ El monorepo agrupa las aplicaciones cliente y los módulos Java compartidos que 
 - **Responsabilidades claras**: la mensajería, notificaciones y automatizaciones externas viven fuera de este repositorio y se integran únicamente a través de CSV o procesos coordinados.
 - **Reutilización entre clientes**: los módulos compartidos definen contratos y utilidades comunes para Android y escritorio, evitando divergencias en el modelo de datos.
 
+## Base de datos oficial
+
+El hub opera sobre SQL Server como única fuente de verdad. El entorno
+`infra/local-hub` levanta SQL Server y el backend Java mediante Docker Compose y
+crea automáticamente la base y el usuario de aplicación. PostgreSQL solo se
+mantiene como sustituto temporal en pruebas automatizadas o pipelines que aún no
+pueden apuntar a SQL Server; dichos artefactos están documentados en
+[`infra/postgresql`](infra/postgresql/README.md).
+
 ## Diagrama lógico
 ```mermaid
 flowchart LR

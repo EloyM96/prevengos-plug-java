@@ -1,6 +1,9 @@
 # Postgres local para Prevengos Plug
 
-Este entorno docker-compose está optimizado para validar las migraciones Flyway y preparar escenarios de replicación lógica.
+Este entorno docker-compose está optimizado para validar las migraciones Flyway
+y preparar escenarios de replicación lógica cuando no se dispone de SQL Server.
+Funciona como sustituto temporal en pipelines o desarrollos que requieren un
+motor ligero compatible con Testcontainers.
 
 ## Pasos
 
