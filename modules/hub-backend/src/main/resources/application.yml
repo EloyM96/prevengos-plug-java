@@ -5,6 +5,11 @@ spring:
     property-naming-strategy: SNAKE_CASE
     serialization:
       write-dates-as-timestamps: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/sqlserver
+    baseline-on-migrate: true
+    schemas: dbo
 
 hub:
   sqlserver:
