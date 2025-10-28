@@ -42,7 +42,18 @@ curl http://localhost:8080/actuator/health
 ## 4. Ejecutar una sincronización manual
 
 1. Genera payloads `pacientes.json` y `cuestionarios.json` utilizando las plantillas de `contracts/json` o exportando desde la app Android.
-2. Sigue el procedimiento detallado en [`docs/quality/manual-sync-checklist.md`](docs/quality/manual-sync-checklist.md) para enviar los datos, verificar SQL Server mediante `sqlcmd` y realizar pulls subsecuentes.
+2. Envía ambos lotes con un único `POST /sincronizacion`:
+   ```bash
+   curl -X POST http://localhost:8080/sincronizacion \
+     -H 'Content-Type: application/json' \
+     -d @payloads/sync-request.json
+   ```
+   El backend devolverá el `last_sync_token` procesado y los identificadores consolidados.
+3. Recupera cambios pendientes con `GET /sincronizacion` especificando el token recibido:
+   ```bash
+   curl "http://localhost:8080/sincronizacion?afterToken=${LAST_TOKEN}&limit=50"
+   ```
+4. Sigue el procedimiento detallado en [`docs/quality/manual-sync-checklist.md`](docs/quality/manual-sync-checklist.md) para validar los registros en SQL Server mediante `sqlcmd` y realizar pulls subsecuentes.
 
 ## 5. Ejecutar pruebas automatizadas
 
@@ -50,7 +61,7 @@ curl http://localhost:8080/actuator/health
    ```bash
    ./gradlew :modules:hub-backend:test
    ```
-   La suite incluye coberturas de observabilidad y conflictos sobre los endpoints `sincronizacion/*`.
+   La suite ejecuta pruebas de integración con SQL Server real (Testcontainers) que cubren push, pull y generación de CSV.
 2. **Aplicación Android (repositorio y parsing remoto):**
    ```bash
    ./gradlew :android-app:test
@@ -68,7 +79,12 @@ curl http://localhost:8080/actuator/health
 ## 6. Validar el intercambio CSV
 
 1. Los formatos oficiales y ejemplos están documentados en [`contracts/csv/rrhh`](contracts/csv/rrhh/README.md) y en la guía funcional [`docs/integrations/csv-formatos.md`](docs/integrations/csv-formatos.md).
-2. Para un recorrido completo sobre automatizaciones y carpetas de drop, revisa [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md).
+2. Lanza una exportación ad-hoc con:
+   ```bash
+   curl -X POST http://localhost:8080/rrhh/export -H 'Content-Type: application/json' -d '{"trigger_type":"manual"}'
+   ```
+   Los CSV se generan en `RRHH_EXPORT_BASE` y se archivan en `RRHH_EXPORT_ARCHIVE`.
+3. Para un recorrido completo sobre automatizaciones y carpetas de drop, revisa [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md).
 
 ## 7. Preparar entregables de cliente
 

@@ -1,29 +1,13 @@
 package com.prevengos.plug.gateway.sqlserver;
 
-import com.prevengos.plug.shared.persistence.jdbc.FileDropLogRecord;
-import com.prevengos.plug.shared.persistence.jdbc.RrhhExportRecord;
+import com.prevengos.plug.shared.rrhh.FileDropRecord;
+import com.prevengos.plug.shared.rrhh.RrhhExportRecord;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class JdbcRrhhAuditGateway implements RrhhAuditGateway {
-
-    private static final String INSERT_EXPORT_SQL = """
-            INSERT INTO rrhh_exports (export_id, trace_id, trigger_type, process_name, origin, operator,
-                                      remote_path, archive_path, pacientes_count, cuestionarios_count,
-                                      status, message, created_at)
-            VALUES (:export_id, :trace_id, :trigger_type, :process_name, :origin, :operator,
-                    :remote_path, :archive_path, :pacientes_count, :cuestionarios_count,
-                    :status, :message, :created_at);
-            """;
-
-    private static final String INSERT_FILE_DROP_SQL = """
-            INSERT INTO file_drop_log (log_id, trace_id, process_name, protocol, remote_path, file_name,
-                                       checksum, status, message, created_at)
-            VALUES (:log_id, :trace_id, :process_name, :protocol, :remote_path, :file_name,
-                    :checksum, :status, :message, :created_at);
-            """;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -33,10 +17,17 @@ public class JdbcRrhhAuditGateway implements RrhhAuditGateway {
 
     @Override
     public void recordExport(RrhhExportRecord record) {
+        String sql = """
+                INSERT INTO dbo.rrhh_exports (export_id, trace_id, trigger_type, process_name, origin, operator,
+                                              remote_path, archive_path, pacientes_count, cuestionarios_count, status,
+                                              message, created_at)
+                VALUES (:export_id, :trace_id, :trigger_type, :process_name, :origin, :operator, :remote_path,
+                        :archive_path, :pacientes_count, :cuestionarios_count, :status, :message, :created_at)
+                """;
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("export_id", record.exportId())
                 .addValue("trace_id", record.traceId())
-                .addValue("trigger_type", record.trigger())
+                .addValue("trigger_type", record.triggerType())
                 .addValue("process_name", record.processName())
                 .addValue("origin", record.origin())
                 .addValue("operator", record.operator())
@@ -47,11 +38,17 @@ public class JdbcRrhhAuditGateway implements RrhhAuditGateway {
                 .addValue("status", record.status())
                 .addValue("message", record.message())
                 .addValue("created_at", record.createdAt());
-        jdbcTemplate.update(INSERT_EXPORT_SQL, params);
+        jdbcTemplate.update(sql, params);
     }
 
     @Override
-    public void recordFileDrop(FileDropLogRecord record) {
+    public void recordFileDrop(FileDropRecord record) {
+        String sql = """
+                INSERT INTO dbo.file_drop_log (log_id, trace_id, process_name, protocol, remote_path, file_name,
+                                               checksum, status, message, created_at)
+                VALUES (:log_id, :trace_id, :process_name, :protocol, :remote_path, :file_name, :checksum, :status,
+                        :message, :created_at)
+                """;
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("log_id", record.logId())
                 .addValue("trace_id", record.traceId())
@@ -63,6 +60,6 @@ public class JdbcRrhhAuditGateway implements RrhhAuditGateway {
                 .addValue("status", record.status())
                 .addValue("message", record.message())
                 .addValue("created_at", record.createdAt());
-        jdbcTemplate.update(INSERT_FILE_DROP_SQL, params);
+        jdbcTemplate.update(sql, params);
     }
 }

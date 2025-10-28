@@ -1,20 +1,18 @@
 package com.prevengos.plug.shared.persistence.jdbc;
 
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Represents the subset of patient data required to generate RRHH exports.
+ * Representa una fila exportable a CSV para RRHH.
  */
 public record PacienteCsvRow(
         UUID pacienteId,
         String nif,
         String nombre,
         String apellidos,
-        LocalDate fechaNacimiento,
+        java.time.LocalDate fechaNacimiento,
         String sexo,
         String telefono,
         String email,
@@ -22,52 +20,45 @@ public record PacienteCsvRow(
         UUID centroId,
         String externoRef,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime lastModified
 ) {
-
-    public static final List<String> CSV_HEADERS = List.of(
-            "paciente_id",
-            "nif",
-            "nombre",
-            "apellidos",
-            "fecha_nacimiento",
-            "sexo",
-            "telefono",
-            "email",
-            "empresa_id",
-            "centro_id",
-            "externo_ref",
-            "created_at",
-            "updated_at"
-    );
-
-    public List<String> toCsvRow() {
+    public static List<String> headers() {
         return List.of(
-                safeToString(pacienteId),
-                safeToString(nif),
-                safeToString(nombre),
-                safeToString(apellidos),
-                safeToDate(fechaNacimiento),
-                safeToString(sexo),
-                safeToString(telefono),
-                safeToString(email),
-                safeToString(empresaId),
-                safeToString(centroId),
-                safeToString(externoRef),
-                safeToDateTime(createdAt),
-                safeToDateTime(updatedAt)
+                "paciente_id",
+                "nif",
+                "nombre",
+                "apellidos",
+                "fecha_nacimiento",
+                "sexo",
+                "telefono",
+                "email",
+                "empresa_id",
+                "centro_id",
+                "externo_ref",
+                "created_at",
+                "last_modified"
         );
     }
 
-    private static String safeToString(Object value) {
-        return value == null ? "" : value.toString();
+    public List<String> values() {
+        return List.of(
+                pacienteId.toString(),
+                nullSafe(nif),
+                nullSafe(nombre),
+                nullSafe(apellidos),
+                fechaNacimiento == null ? "" : fechaNacimiento.toString(),
+                nullSafe(sexo),
+                nullSafe(telefono),
+                nullSafe(email),
+                empresaId == null ? "" : empresaId.toString(),
+                centroId == null ? "" : centroId.toString(),
+                nullSafe(externoRef),
+                createdAt == null ? "" : createdAt.toString(),
+                lastModified == null ? "" : lastModified.toString()
+        );
     }
 
-    private static String safeToDate(LocalDate value) {
-        return value == null ? "" : value.toString();
-    }
-
-    private static String safeToDateTime(OffsetDateTime value) {
-        return value == null ? "" : value.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+    private String nullSafe(String value) {
+        return value == null ? "" : value;
     }
 }

@@ -1,11 +1,10 @@
 package com.prevengos.plug.gateway.csv;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
+import com.prevengos.plug.shared.persistence.jdbc.CuestionarioCsvRow;
+import com.prevengos.plug.shared.persistence.jdbc.PacienteCsvRow;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,41 +12,56 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.stream.Collectors;
 
-@Component
+/**
+ * Utilidad ligera para generar CSV compatibles con RRHH.
+ */
 public class CsvFileWriter {
 
-    private static final Logger logger = LoggerFactory.getLogger(CsvFileWriter.class);
+    public Path writePacientes(Path directory, List<PacienteCsvRow> rows) {
+        Path output = directory.resolve("pacientes.csv");
+        writeCsv(output, PacienteCsvRow.headers(), rows.stream().map(PacienteCsvRow::values).toList());
+        writeChecksum(output);
+        return output;
+    }
 
-    public void writeCsv(Path file, List<String> headers, List<List<String>> rows) {
+    public Path writeCuestionarios(Path directory, List<CuestionarioCsvRow> rows) {
+        Path output = directory.resolve("cuestionarios.csv");
+        writeCsv(output, CuestionarioCsvRow.headers(), rows.stream().map(CuestionarioCsvRow::values).toList());
+        writeChecksum(output);
+        return output;
+    }
+
+    private void writeCsv(Path path, List<String> headers, List<List<String>> rows) {
         try {
-            Files.createDirectories(file.getParent());
-            try (BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-                writer.write(String.join(";", headers.stream().map(this::escape).toList()));
-                writer.newLine();
-                for (List<String> row : rows) {
-                    writer.write(String.join(";", row.stream().map(this::escape).toList()));
-                    writer.newLine();
-                }
+            Files.createDirectories(path.getParent());
+            StringBuilder builder = new StringBuilder();
+            builder.append(String.join(",", headers)).append('\n');
+            for (List<String> row : rows) {
+                builder.append(row.stream()
+                        .map(this::escape)
+                        .collect(Collectors.joining(",")))
+                        .append('\n');
             }
-            logger.info("CSV generado en {}", file);
+            Files.writeString(path, builder.toString(), StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new IllegalStateException("Error writing CSV file " + file, e);
+            throw new UncheckedIOException("No se pudo escribir el CSV " + path, e);
         }
     }
 
-    public String writeChecksum(Path file) {
-        Path checksumFile = file.resolveSibling(file.getFileName().toString() + ".sha256");
+    private void writeChecksum(Path path) {
+        Path checksum = path.resolveSibling(path.getFileName().toString() + ".sha256");
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] bytes = Files.readAllBytes(file);
-            byte[] hash = digest.digest(bytes);
-            String value = HexFormat.of().withUpperCase().formatHex(hash);
-            Files.writeString(checksumFile, value, StandardCharsets.UTF_8);
-            logger.info("Checksum generado en {}", checksumFile);
-            return value;
-        } catch (NoSuchAlgorithmException | IOException e) {
-            throw new IllegalStateException("Error generating checksum for " + file, e);
+            byte[] data = Files.readAllBytes(path);
+            byte[] hash = digest.digest(data);
+            String hex = HexFormat.of().formatHex(hash);
+            Files.writeString(checksum, hex + "  " + path.getFileName() + System.lineSeparator(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo escribir checksum", e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 no disponible", e);
         }
     }
 
@@ -55,11 +69,9 @@ public class CsvFileWriter {
         if (value == null) {
             return "";
         }
-        boolean needsQuotes = value.contains(";") || value.contains("\"") || value.contains("\n");
-        String sanitized = value.replace("\"", "\"\"");
-        if (needsQuotes) {
-            return "\"" + sanitized + "\"";
+        if (value.contains(",") || value.contains("\"")) {
+            return '"' + value.replace("\"", "\"\"") + '"';
         }
-        return sanitized;
+        return value;
     }
 }
