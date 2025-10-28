@@ -56,6 +56,7 @@ La [Guía de implementación](docs/guia-de-implementacion.md) recopila los módu
 ## Documentación clave
 
 - **Puesta en marcha unificada:** [`docs/quickstart.md`](docs/quickstart.md) cubre requisitos, despliegue local con SQL Server, pruebas y validaciones.
+- **Recorridos manuales en local:** [`docs/operations/local-testing.md`](docs/operations/local-testing.md) resume cómo levantar el hub con Docker, inyectar payloads y validar resultados sobre SQL Server o PostgreSQL de soporte.
 - **Formatos CSV oficiales:** [`docs/integrations/csv-formatos.md`](docs/integrations/csv-formatos.md) y las plantillas en [`contracts/csv/rrhh`](contracts/csv/rrhh/README.md) definen columnas, ejemplos y reglas de checksum.
 - **Automatización de intercambio:** [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) describe los jobs recomendados para entregar y recibir CSV sin intervención manual.
 - **Checklists de calidad:** [`docs/quality/manual-sync-checklist.md`](docs/quality/manual-sync-checklist.md) guía las validaciones end-to-end en SQL Server.
