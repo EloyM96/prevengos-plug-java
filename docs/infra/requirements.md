@@ -20,8 +20,10 @@ A dedicated `staging` namespace is required. The CI/CD workflow creates the name
 
 ## External dependencies
 
-* **PostgreSQL** – version 14 or newer. A database named `prevengos_plug` with a user that has migration and DML permissions. Connection secrets are injected via the `plug-database` Kubernetes Secret (keys `username`, `password`, `url`).
-* **Redis** – version 6 or newer operating in standalone mode. Connection URI stored in the `plug-redis` Secret (key `url`).
+* **SQL Server** – version 2019 o superior en modalidad Developer o Standard. La base de datos `prevengos_plug` debe existir y el hub necesita un usuario dedicado con permisos `db_datareader`, `db_datawriter` y `db_ddladmin` (o un rol equivalente que permita ejecutar migraciones Flyway). Las credenciales se inyectan mediante el secreto Kubernetes `plug-database` (claves `username`, `password`, `url`).
+* **Redis** – version 6 o newer operating in standalone mode. Connection URI stored in the `plug-redis` Secret (key `url`).
+
+PostgreSQL permanece disponible únicamente para pipelines y pruebas de compatibilidad (`infra/postgresql`). No se utiliza en despliegues oficiales.
 
 Ensure both services are reachable from the staging namespace and enforce TLS where available. The Flyway migration job expects the database to be accessible over the JDBC URL defined in the `DATABASE_URL` secret used by GitHub Actions.
 
