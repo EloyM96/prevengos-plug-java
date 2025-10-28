@@ -68,7 +68,7 @@ curl http://localhost:8080/actuator/health
    ```bash
    curl "http://localhost:8080/sincronizacion/pull?syncToken=${LAST_TOKEN}&limit=50"
    ```
-4. Sigue el procedimiento detallado en [`docs/quality/manual-sync-checklist.md`](docs/quality/manual-sync-checklist.md) para validar los registros en SQL Server mediante `sqlcmd` y realizar pulls subsecuentes.
+4. Sigue el procedimiento detallado en el [`checklist de sincronización manual`](quality/manual-sync-checklist.md) para validar los registros en SQL Server mediante `sqlcmd` y realizar pulls subsecuentes.
 
 ## 5. Ejecutar pruebas automatizadas
 
@@ -93,16 +93,16 @@ curl http://localhost:8080/actuator/health
 
 ## 6. Validar el intercambio CSV
 
-1. Los formatos oficiales y ejemplos están documentados en [`contracts/csv/rrhh`](contracts/csv/rrhh/README.md) y en la guía funcional [`docs/integrations/csv-formatos.md`](docs/integrations/csv-formatos.md).
+1. Los formatos oficiales y ejemplos están documentados en [`contracts/csv/rrhh`](../contracts/csv/rrhh/README.md) y en la guía funcional [`docs/integrations/csv-formatos.md`](integrations/csv-formatos.md).
 2. Lanza una exportación ad-hoc con:
    ```bash
    curl -X POST http://localhost:8080/rrhh/export -H 'Content-Type: application/json' -d '{"trigger_type":"manual"}'
    ```
    Los CSV se generan en `RRHH_EXPORT_BASE` y se archivan en `RRHH_EXPORT_ARCHIVE`.
-3. Para un recorrido completo sobre automatizaciones y carpetas de drop, revisa [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md).
+3. Para un recorrido completo sobre automatizaciones y carpetas de drop, revisa [`docs/operations/csv-automation.md`](operations/csv-automation.md).
 
 ## 7. Preparar entregables de cliente
 
-* Para la app Android, sigue la guía de construcción y distribución en [`docs/operations/android-build-and-distribution.md`](docs/operations/android-build-and-distribution.md).
-* Para la app de escritorio JavaFX, consulta el empaquetado descrito en [`docs/operations/desktop-app-distribution.md`](docs/operations/desktop-app-distribution.md) y el README del módulo [`desktop-app/README.md`](desktop-app/README.md).
-* Completa los jobs descritos en [`docs/operations/csv-automation.md`](docs/operations/csv-automation.md) para enviar/recibir CSV sin intervención manual y revisa los runbooks de soporte en `docs/operations` junto con los procedimientos de calidad en `docs/quality`.
+* Para la app Android, sigue la guía de construcción y distribución en [`docs/operations/android-build-and-distribution.md`](operations/android-build-and-distribution.md).
+* Para la app de escritorio JavaFX, consulta el empaquetado descrito en [`docs/operations/desktop-app-distribution.md`](operations/desktop-app-distribution.md) y el README del módulo [`desktop-app/README.md`](../desktop-app/README.md).
+* Completa los jobs descritos en [`docs/operations/csv-automation.md`](operations/csv-automation.md) para enviar/recibir CSV sin intervención manual y revisa los runbooks de soporte en `docs/operations` junto con los procedimientos de calidad en `docs/quality`.
