@@ -1,15 +1,15 @@
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
-    `java-library`
+    id 'java-library'
 }
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
 dependencies {
-    api(project(":modules:domain"))
+    api project(':modules:domain')
 }

@@ -1,0 +1,58 @@
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+
+plugins {
+    id 'org.springframework.boot' version '3.2.3'
+    id 'io.spring.dependency-management' version '1.1.4'
+    id 'com.google.cloud.tools.jib'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+dependencies {
+    implementation project(':modules:app')
+    implementation project(':modules:domain')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'au.com.dius.pact.core:model:4.6.9'
+    testImplementation 'io.swagger.parser.v3:swagger-parser:2.1.16'
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+def registry = providers.gradleProperty('containerRegistry').orNull
+
+def imageName = providers.gradleProperty('containerImageName').orElse('api-rest').get()
+
+def additionalTag = providers.gradleProperty('containerImageTag').orNull
+
+jib {
+    from {
+        image = 'eclipse-temurin:17-jre'
+    }
+    to {
+        def targetRegistry = registry ?: 'ghcr.io/prevengos'
+        image = "${targetRegistry}/${imageName}"
+        def tagsToPublish = new LinkedHashSet<String>(['latest', project.version.toString()])
+        if (additionalTag) {
+            tagsToPublish.add(additionalTag)
+        }
+        tags = tagsToPublish
+    }
+    container {
+        ports = ['8080']
+        environment = [
+            'SPRING_PROFILES_ACTIVE': providers.gradleProperty('springProfile').orElse('staging').get()
+        ]
+        def mainClassName = providers.gradleProperty('mainClassName').orNull
+        if (mainClassName) {
+            mainClass = mainClassName
+        }
+    }
+}
