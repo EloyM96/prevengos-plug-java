@@ -8,6 +8,7 @@ Esta guía complementa las plantillas versionadas en `contracts/csv` y resume qu
 - **Separador:** `;` con comillas dobles para valores que contienen caracteres especiales.
 - **Checksum:** cada archivo dispone de un `.sha256` adyacente generado con `sha256sum <archivo> > <archivo>.sha256`.
 - **Carpetas:** estructura `YYYYMMDD/<proceso>/<origen>/` donde `<origen>` puede ser `hub` (export) o `prevengos` (import).
+- **Herramientas oficiales:** `CsvFileWriter` (`modules/gateway/csv`) implementa estas convenciones y escribe el `.sha256` con el mismo formato (hash en minúsculas + dos espacios + nombre de archivo) que produciría `sha256sum`.
 
 ## Exportaciones del hub
 
