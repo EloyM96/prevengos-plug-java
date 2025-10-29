@@ -2,17 +2,12 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     id 'java-library'
-    id 'org.jetbrains.kotlin.jvm'
 }
 
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
     }
-}
-
-kotlin {
-    jvmToolchain(17)
 }
 
 dependencies {
