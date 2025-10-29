@@ -29,125 +29,296 @@ CREATE INDEX IF NOT EXISTS idx_cuestionarios_created_at
 CREATE INDEX IF NOT EXISTS idx_cuestionarios_updated_at
     ON cuestionarios (updated_at DESC);
 
-CREATE OR REPLACE FUNCTION touch_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION touch_pacientes_updated_at()
+RETURNS TRIGGER
+LANGUAGE SQL
+AS $$
+    SELECT ROW(
+        NEW.paciente_id,
+        NEW.nif,
+        NEW.nombre,
+        NEW.apellidos,
+        NEW.fecha_nacimiento,
+        NEW.sexo,
+        NEW.telefono,
+        NEW.email,
+        NEW.empresa_id,
+        NEW.centro_id,
+        NEW.externo_ref,
+        NEW.created_at,
+        NOW()
+    )::pacientes;
+$$;
+
+CREATE OR REPLACE FUNCTION touch_cuestionarios_updated_at()
+RETURNS TRIGGER
+LANGUAGE SQL
+AS $$
+    SELECT ROW(
+        NEW.cuestionario_id,
+        NEW.paciente_id,
+        NEW.plantilla_codigo,
+        NEW.estado,
+        NEW.created_at,
+        NOW()
+    )::cuestionarios;
+$$;
 
 CREATE TRIGGER trg_pacientes_touch_updated
     BEFORE UPDATE ON pacientes
     FOR EACH ROW
-    EXECUTE FUNCTION touch_updated_at();
+    EXECUTE FUNCTION touch_pacientes_updated_at();
 
 CREATE TRIGGER trg_cuestionarios_touch_updated
     BEFORE UPDATE ON cuestionarios
     FOR EACH ROW
-    EXECUTE FUNCTION touch_updated_at();
+    EXECUTE FUNCTION touch_cuestionarios_updated_at();
 
-CREATE OR REPLACE FUNCTION record_sync_event_pacientes()
-RETURNS TRIGGER AS $$
-DECLARE
-    row_data RECORD;
-    payload JSONB;
-    entity_uuid UUID;
-BEGIN
-    IF (TG_OP = 'DELETE') THEN
-        row_data := OLD;
-    ELSE
-        row_data := NEW;
-    END IF;
-
-    entity_uuid := row_data.paciente_id;
-
-    payload := jsonb_build_object(
-        'paciente_id', entity_uuid,
-        'nif', row_data.nif,
-        'nombre', row_data.nombre,
-        'apellidos', row_data.apellidos,
-        'fecha_nacimiento', row_data.fecha_nacimiento,
-        'sexo', row_data.sexo,
-        'telefono', row_data.telefono,
-        'email', row_data.email,
-        'empresa_id', row_data.empresa_id,
-        'centro_id', row_data.centro_id,
-        'externo_ref', row_data.externo_ref,
-        'created_at', row_data.created_at,
-        'updated_at', row_data.updated_at
-    );
-
+CREATE OR REPLACE FUNCTION record_sync_event_pacientes_insert()
+RETURNS TRIGGER
+LANGUAGE SQL
+AS $$
     INSERT INTO sync_events (entity_type, entity_id, operation, payload)
-    VALUES ('pacientes', entity_uuid, TG_OP, payload);
-
-    IF (TG_OP = 'DELETE') THEN
-        RETURN OLD;
-    ELSE
-        RETURN NEW;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION record_sync_event_cuestionarios()
-RETURNS TRIGGER AS $$
-DECLARE
-    row_data RECORD;
-    payload JSONB;
-    entity_uuid UUID;
-    respuestas JSONB;
-BEGIN
-    IF (TG_OP = 'DELETE') THEN
-        row_data := OLD;
-    ELSE
-        row_data := NEW;
-    END IF;
-
-    entity_uuid := row_data.cuestionario_id;
-
-    SELECT COALESCE(
-        jsonb_agg(
-            jsonb_build_object(
-                'pregunta_codigo', cr.pregunta_codigo,
-                'valor', cr.valor,
-                'unidad', cr.unidad,
-                'metadata', cr.metadata,
-                'created_at', cr.created_at
-            ) ORDER BY cr.created_at
-        ),
-        '[]'::JSONB
-    )
-    INTO respuestas
-    FROM cuestionario_respuestas cr
-    WHERE cr.cuestionario_id = entity_uuid;
-
-    payload := jsonb_build_object(
-        'cuestionario_id', entity_uuid,
-        'paciente_id', row_data.paciente_id,
-        'plantilla_codigo', row_data.plantilla_codigo,
-        'estado', row_data.estado,
-        'respuestas', respuestas,
-        'created_at', row_data.created_at,
-        'updated_at', row_data.updated_at
+    VALUES (
+        'pacientes',
+        NEW.paciente_id,
+        'INSERT',
+        jsonb_build_object(
+            'paciente_id', NEW.paciente_id,
+            'nif', NEW.nif,
+            'nombre', NEW.nombre,
+            'apellidos', NEW.apellidos,
+            'fecha_nacimiento', NEW.fecha_nacimiento,
+            'sexo', NEW.sexo,
+            'telefono', NEW.telefono,
+            'email', NEW.email,
+            'empresa_id', NEW.empresa_id,
+            'centro_id', NEW.centro_id,
+            'externo_ref', NEW.externo_ref,
+            'created_at', NEW.created_at,
+            'updated_at', NEW.updated_at
+        )
     );
+    SELECT NEW;
+$$;
 
+CREATE OR REPLACE FUNCTION record_sync_event_pacientes_update()
+RETURNS TRIGGER
+LANGUAGE SQL
+AS $$
     INSERT INTO sync_events (entity_type, entity_id, operation, payload)
-    VALUES ('cuestionarios', entity_uuid, TG_OP, payload);
+    VALUES (
+        'pacientes',
+        NEW.paciente_id,
+        'UPDATE',
+        jsonb_build_object(
+            'paciente_id', NEW.paciente_id,
+            'nif', NEW.nif,
+            'nombre', NEW.nombre,
+            'apellidos', NEW.apellidos,
+            'fecha_nacimiento', NEW.fecha_nacimiento,
+            'sexo', NEW.sexo,
+            'telefono', NEW.telefono,
+            'email', NEW.email,
+            'empresa_id', NEW.empresa_id,
+            'centro_id', NEW.centro_id,
+            'externo_ref', NEW.externo_ref,
+            'created_at', NEW.created_at,
+            'updated_at', NEW.updated_at
+        )
+    );
+    SELECT NEW;
+$$;
 
-    IF (TG_OP = 'DELETE') THEN
-        RETURN OLD;
-    ELSE
-        RETURN NEW;
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION record_sync_event_pacientes_delete()
+RETURNS TRIGGER
+LANGUAGE SQL
+AS $$
+    INSERT INTO sync_events (entity_type, entity_id, operation, payload)
+    VALUES (
+        'pacientes',
+        OLD.paciente_id,
+        'DELETE',
+        jsonb_build_object(
+            'paciente_id', OLD.paciente_id,
+            'nif', OLD.nif,
+            'nombre', OLD.nombre,
+            'apellidos', OLD.apellidos,
+            'fecha_nacimiento', OLD.fecha_nacimiento,
+            'sexo', OLD.sexo,
+            'telefono', OLD.telefono,
+            'email', OLD.email,
+            'empresa_id', OLD.empresa_id,
+            'centro_id', OLD.centro_id,
+            'externo_ref', OLD.externo_ref,
+            'created_at', OLD.created_at,
+            'updated_at', OLD.updated_at
+        )
+    );
+    SELECT OLD;
+$$;
 
-CREATE TRIGGER trg_pacientes_sync_events
-    AFTER INSERT OR UPDATE OR DELETE ON pacientes
+CREATE OR REPLACE FUNCTION record_sync_event_cuestionarios_insert()
+RETURNS TRIGGER
+LANGUAGE SQL
+AS $$
+    INSERT INTO sync_events (entity_type, entity_id, operation, payload)
+    VALUES (
+        'cuestionarios',
+        NEW.cuestionario_id,
+        'INSERT',
+        jsonb_build_object(
+            'cuestionario_id', NEW.cuestionario_id,
+            'paciente_id', NEW.paciente_id,
+            'plantilla_codigo', NEW.plantilla_codigo,
+            'estado', NEW.estado,
+            'respuestas', COALESCE(
+                (
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'pregunta_codigo', ordered.pregunta_codigo,
+                            'valor', ordered.valor,
+                            'unidad', ordered.unidad,
+                            'metadata', ordered.metadata,
+                            'created_at', ordered.created_at
+                        )
+                    )
+                    FROM (
+                        SELECT cr.pregunta_codigo,
+                               cr.valor,
+                               cr.unidad,
+                               cr.metadata,
+                               cr.created_at
+                        FROM cuestionario_respuestas cr
+                        WHERE cr.cuestionario_id = NEW.cuestionario_id
+                        ORDER BY cr.created_at
+                    ) AS ordered
+                ),
+                '[]'::JSONB
+            ),
+            'created_at', NEW.created_at,
+            'updated_at', NEW.updated_at
+        )
+    );
+    SELECT NEW;
+$$;
+
+CREATE OR REPLACE FUNCTION record_sync_event_cuestionarios_update()
+RETURNS TRIGGER
+LANGUAGE SQL
+AS $$
+    INSERT INTO sync_events (entity_type, entity_id, operation, payload)
+    VALUES (
+        'cuestionarios',
+        NEW.cuestionario_id,
+        'UPDATE',
+        jsonb_build_object(
+            'cuestionario_id', NEW.cuestionario_id,
+            'paciente_id', NEW.paciente_id,
+            'plantilla_codigo', NEW.plantilla_codigo,
+            'estado', NEW.estado,
+            'respuestas', COALESCE(
+                (
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'pregunta_codigo', ordered.pregunta_codigo,
+                            'valor', ordered.valor,
+                            'unidad', ordered.unidad,
+                            'metadata', ordered.metadata,
+                            'created_at', ordered.created_at
+                        )
+                    )
+                    FROM (
+                        SELECT cr.pregunta_codigo,
+                               cr.valor,
+                               cr.unidad,
+                               cr.metadata,
+                               cr.created_at
+                        FROM cuestionario_respuestas cr
+                        WHERE cr.cuestionario_id = NEW.cuestionario_id
+                        ORDER BY cr.created_at
+                    ) AS ordered
+                ),
+                '[]'::JSONB
+            ),
+            'created_at', NEW.created_at,
+            'updated_at', NEW.updated_at
+        )
+    );
+    SELECT NEW;
+$$;
+
+CREATE OR REPLACE FUNCTION record_sync_event_cuestionarios_delete()
+RETURNS TRIGGER
+LANGUAGE SQL
+AS $$
+    INSERT INTO sync_events (entity_type, entity_id, operation, payload)
+    VALUES (
+        'cuestionarios',
+        OLD.cuestionario_id,
+        'DELETE',
+        jsonb_build_object(
+            'cuestionario_id', OLD.cuestionario_id,
+            'paciente_id', OLD.paciente_id,
+            'plantilla_codigo', OLD.plantilla_codigo,
+            'estado', OLD.estado,
+            'respuestas', COALESCE(
+                (
+                    SELECT jsonb_agg(
+                        jsonb_build_object(
+                            'pregunta_codigo', ordered.pregunta_codigo,
+                            'valor', ordered.valor,
+                            'unidad', ordered.unidad,
+                            'metadata', ordered.metadata,
+                            'created_at', ordered.created_at
+                        )
+                    )
+                    FROM (
+                        SELECT cr.pregunta_codigo,
+                               cr.valor,
+                               cr.unidad,
+                               cr.metadata,
+                               cr.created_at
+                        FROM cuestionario_respuestas cr
+                        WHERE cr.cuestionario_id = OLD.cuestionario_id
+                        ORDER BY cr.created_at
+                    ) AS ordered
+                ),
+                '[]'::JSONB
+            ),
+            'created_at', OLD.created_at,
+            'updated_at', OLD.updated_at
+        )
+    );
+    SELECT OLD;
+$$;
+
+CREATE TRIGGER trg_pacientes_sync_events_insert
+    AFTER INSERT ON pacientes
     FOR EACH ROW
-    EXECUTE FUNCTION record_sync_event_pacientes();
+    EXECUTE FUNCTION record_sync_event_pacientes_insert();
 
-CREATE TRIGGER trg_cuestionarios_sync_events
-    AFTER INSERT OR UPDATE OR DELETE ON cuestionarios
+CREATE TRIGGER trg_pacientes_sync_events_update
+    AFTER UPDATE ON pacientes
     FOR EACH ROW
-    EXECUTE FUNCTION record_sync_event_cuestionarios();
+    EXECUTE FUNCTION record_sync_event_pacientes_update();
+
+CREATE TRIGGER trg_pacientes_sync_events_delete
+    AFTER DELETE ON pacientes
+    FOR EACH ROW
+    EXECUTE FUNCTION record_sync_event_pacientes_delete();
+
+CREATE TRIGGER trg_cuestionarios_sync_events_insert
+    AFTER INSERT ON cuestionarios
+    FOR EACH ROW
+    EXECUTE FUNCTION record_sync_event_cuestionarios_insert();
+
+CREATE TRIGGER trg_cuestionarios_sync_events_update
+    AFTER UPDATE ON cuestionarios
+    FOR EACH ROW
+    EXECUTE FUNCTION record_sync_event_cuestionarios_update();
+
+CREATE TRIGGER trg_cuestionarios_sync_events_delete
+    AFTER DELETE ON cuestionarios
+    FOR EACH ROW
+    EXECUTE FUNCTION record_sync_event_cuestionarios_delete();

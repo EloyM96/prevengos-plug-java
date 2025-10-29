@@ -22,8 +22,8 @@ Indices auxiliares permiten paginación por `occurred_at` y búsquedas por entid
 
 ### Pacientes
 
-Los triggers `trg_pacientes_touch_updated` y `trg_pacientes_sync_events` garantizan marcas temporales consistentes y generan un
-`payload` con la siguiente correspondencia:
+Los triggers `trg_pacientes_touch_updated` (que delega en la función `touch_pacientes_updated_at()`) y `trg_pacientes_sync_events`
+garantizan marcas temporales consistentes y generan un `payload` con la siguiente correspondencia:
 
 | Columna `pacientes` | Propiedad JSON | Notas |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ Los triggers `trg_pacientes_touch_updated` y `trg_pacientes_sync_events` garanti
 | `centro_id` | `centro_id` | UUID opcional. |
 | `externo_ref` | `externo_ref` | Referencia externa opcional. |
 | `created_at` | `created_at` | Fecha de alta (`timestamptz`). |
-| `updated_at` | `updated_at` | Gestionado automáticamente por `touch_updated_at()`. |
+| `updated_at` | `updated_at` | Gestionado automáticamente por `touch_pacientes_updated_at()`. |
 
 El resultado cumple con `contracts/json/v1/paciente.schema.json` y se utiliza tanto para altas como para modificaciones y bajas
 (los deletes conservan los últimos valores persistidos).
