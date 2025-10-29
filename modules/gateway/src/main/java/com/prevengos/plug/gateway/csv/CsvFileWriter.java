@@ -19,6 +19,8 @@ import java.util.stream.Collectors;
  */
 public class CsvFileWriter {
 
+    private static final char DELIMITER = ';';
+
     public Path writePacientes(Path directory, List<PacienteCsvRow> rows) {
         Path output = directory.resolve("pacientes.csv");
         writeCsv(output, PacienteCsvRow.headers(), rows.stream().map(PacienteCsvRow::values).toList());
@@ -33,16 +35,16 @@ public class CsvFileWriter {
         return output;
     }
 
-    private void writeCsv(Path path, List<String> headers, List<List<String>> rows) {
+    void writeCsv(Path path, List<String> headers, List<List<String>> rows) {
         try {
             Files.createDirectories(path.getParent());
             StringBuilder builder = new StringBuilder();
-            builder.append(String.join(",", headers)).append('\n');
+            builder.append(String.join(String.valueOf(DELIMITER), headers)).append(System.lineSeparator());
             for (List<String> row : rows) {
                 builder.append(row.stream()
                         .map(this::escape)
-                        .collect(Collectors.joining(",")))
-                        .append('\n');
+                        .collect(Collectors.joining(String.valueOf(DELIMITER))))
+                        .append(System.lineSeparator());
             }
             Files.writeString(path, builder.toString(), StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -50,14 +52,16 @@ public class CsvFileWriter {
         }
     }
 
-    private void writeChecksum(Path path) {
+    String writeChecksum(Path path) {
         Path checksum = path.resolveSibling(path.getFileName().toString() + ".sha256");
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] data = Files.readAllBytes(path);
             byte[] hash = digest.digest(data);
             String hex = HexFormat.of().formatHex(hash);
-            Files.writeString(checksum, hex + "  " + path.getFileName() + System.lineSeparator(), StandardCharsets.UTF_8);
+            String payload = hex + "  " + path.getFileName();
+            Files.writeString(checksum, payload + System.lineSeparator(), StandardCharsets.UTF_8);
+            return hex;
         } catch (IOException e) {
             throw new UncheckedIOException("No se pudo escribir checksum", e);
         } catch (NoSuchAlgorithmException e) {
@@ -69,9 +73,16 @@ public class CsvFileWriter {
         if (value == null) {
             return "";
         }
-        if (value.contains(",") || value.contains("\"")) {
+        if (requiresQuoting(value)) {
             return '"' + value.replace("\"", "\"\"") + '"';
         }
         return value;
+    }
+
+    private boolean requiresQuoting(String value) {
+        return value.indexOf(DELIMITER) >= 0
+                || value.contains("\"")
+                || value.contains("\n")
+                || value.contains("\r");
     }
 }

@@ -17,6 +17,13 @@ Esta guía resume la arquitectura integral del sistema para que los equipos de A
 - Definen DTOs, contratos JSON y utilidades de transformación que comparten Android, escritorio y el hub.
 - Implementan lógica de validación, mapeo a CSV y helpers de fechas para asegurar consistencia.
 
+### Adaptadores técnicos de referencia
+- **CSV (`modules/gateway/csv`)**: `CsvFileWriter` y `CsvFileReader` aplican las convenciones oficiales (separador `;`, comillas dobles, codificación UTF-8) y generan los ficheros `.sha256` en el mismo formato que `sha256sum`. Cualquier cambio en contratos debe partir de estas utilidades.
+- **Transferencia de ficheros (`modules/gateway/filetransfer`)**: `FileTransferClient` soporta entregas SFTP/SMB a las carpetas monitorizadas por Prevengos y registra cada drop en `RrhhCsvExportJob`.
+- **SQL Server (`modules/gateway/sqlserver`)**: adaptadores JDBC (`JdbcPacienteGateway`, `JdbcCuestionarioGateway`, etc.) encapsulan los `MERGE`, lecturas paginadas y consultas de exportación. Todos los accesos a la BD del fabricante pasan por aquí.
+- **API Prevengos (`modules/api-rest`)**: `LoggingPrevengosAdapter` es el stub por defecto para pruebas locales. Para conectarse al “servicio de datos” oficial crea un `RestPrevengosAdapter` que implemente `PrevengosPort` y configúralo vía Spring (bean alternativo o perfil específico) con el endpoint JSON proporcionado por el soporte de Prevengos.
+- **Auditoría RRHH (`modules/hub-backend`)**: `RrhhCsvExportJob` orquesta la extracción de datos, genera los CSV, calcula checksums y registra los drops en `RrhhAuditGateway` para trazabilidad completa.
+
 ### Integración con Prevengos
 - **CSV oficiales**: el hub produce ficheros con el formato requerido por Prevengos (altas de trabajadores, cuestionarios, reconocimientos) y consume los CSV de retorno para reflejar estados o aptitudes.
 - **SQL Server local**: las operaciones se realizan sobre tablas autorizadas. El hub controla escrituras y registra auditoría básica (timestamps, usuario, origen).

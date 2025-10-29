@@ -47,7 +47,7 @@ class CsvFileIoTest {
 
         String expectedChecksum = calculateChecksum(csvFile);
         assertEquals(expectedChecksum, checksum);
-        assertEquals(expectedChecksum, Files.readString(checksumFile).trim());
+        assertEquals(expectedChecksum + "  " + csvFile.getFileName(), Files.readString(checksumFile).trim());
 
         List<CsvRecord> records = reader.readCsv(csvFile);
         assertEquals(2, records.size());
@@ -65,6 +65,6 @@ class CsvFileIoTest {
         byte[] bytes = Files.readAllBytes(file);
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(bytes);
-        return HexFormat.of().withUpperCase().formatHex(hash);
+        return HexFormat.of().formatHex(hash);
     }
 }
